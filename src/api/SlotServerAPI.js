@@ -8,7 +8,13 @@
  *   const spin    = await api.spin(session.sessionId, 0.10);
  */
 
-const DEFAULT_BASE_URL = import.meta.env?.VITE_SERVER_URL ?? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
+const RENDER_SERVER_URL = 'https://giftrush.onrender.com';
+
+const DEFAULT_BASE_URL = import.meta.env?.VITE_SERVER_URL ?? (
+  typeof window !== 'undefined'
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : RENDER_SERVER_URL)
+    : RENDER_SERVER_URL
+);
 
 export class SlotServerAPI {
   /**

@@ -1,0 +1,7 @@
+ball.webp
+size:455,232
+filter:Linear,Linear
+ball
+bounds:2,2,225,228
+ball_glow
+bounds:229,2,224,228

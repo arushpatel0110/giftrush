@@ -1,0 +1,12 @@
+cookie.png
+size:667,185
+filter:Linear,Linear
+cookie
+bounds:2,2,181,223
+rotate:90
+cookie_back
+bounds:227,2,181,213
+rotate:90
+cookie_glow
+bounds:442,2,181,223
+rotate:90

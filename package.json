@@ -1,0 +1,29 @@
+{
+  "name": "giftrush",
+  "version": "1.0.0",
+  "description": "Gift Rush – BGaming slot game clone built with PixiJS v7 and OOP architecture",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "node server/server.js",
+    "postinstall": "cd server && npm install",
+    "build:zip": "vite build && powershell -Command \"Compress-Archive -Path dist/* -DestinationPath giftrush.zip -Force\"",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "pixi-spine": "^4.0.6",
+    "pixi.js": "^7.4.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "keywords": [
+    "pixi.js",
+    "slot",
+    "game",
+    "christmas",
+    "canvas"
+  ],
+  "license": "MIT"
+}

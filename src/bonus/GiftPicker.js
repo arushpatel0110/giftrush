@@ -35,7 +35,43 @@ export class GiftPicker {
 
     /** @type {PIXI.Container[]} */
     this._gifts = [];
+    /** @type {PIXI.Container[]} */
+    this._bunches = [];
     this._buildGifts();
+  }
+
+  updateLayout(isPortrait, W, H) {
+    this._w = W;
+    this._h = H;
+    const positions = isPortrait ? [
+      { x: W * 0.30, y: H * 0.28, bunchX: W * 0, bunchY: H * 0.24 },
+      { x: W * 0.70, y: H * 0.36, bunchX: W * 0.9, bunchY: H * 0.37 },
+      { x: W * 0.30, y: H * 0.52, bunchX: W * 0.1, bunchY: H * 0.53 },
+      { x: W * 0.70, y: H * 0.64, bunchX: W * 0.87, bunchY: H * 0.66 },
+      { x: W * 0.45, y: H * 0.80, bunchX: W * 0.67, bunchY: H * 0.8 },
+    ] : [
+      { x: W * 0.20, y: H * 0.30, bunchX: W * 0, bunchY: H * 0.21 },
+      { x: W * 0.57, y: H * 0.31, bunchX: W * 0.77, bunchY: H * 0.32 },
+      { x: W * 0.74, y: H * 0.69, bunchX: W * 0.86, bunchY: H * 0.70 },
+      { x: W * 0.39, y: H * 0.63, bunchX: W * 0.26, bunchY: H * 0.69 },
+      { x: W * 0.76, y: H * 0.32, bunchX: W * 1.0, bunchY: H * 0.23 },
+    ];
+
+    this._gifts.forEach((gift, i) => {
+      const pos = positions[i];
+      if (gift && pos) {
+        gift.x = pos.x;
+        gift.y = pos.y;
+      }
+    });
+
+    this._bunches.forEach((bunch, i) => {
+      const pos = positions[i];
+      if (bunch && pos) {
+        bunch.x = pos.bunchX !== undefined ? pos.bunchX : pos.x;
+        bunch.y = pos.bunchY !== undefined ? pos.bunchY : pos.y;
+      }
+    });
   }
 
   /**
@@ -57,15 +93,15 @@ export class GiftPicker {
     // 1. Reveal clicked gift immediately
     this._revealGift(chosenIdx, multipliers[chosenIdx], true);
 
-    // 2. Wait a short delay before revealing remaining unchosen gifts
-    await AnimationUtils.wait(250);
+    // 2. Wait a pleasant delay so chosen gift is clear before revealing remaining gifts
+    await AnimationUtils.wait(450);
 
-    // 3. Reveal remaining gifts sequentially with quick timing
+    // 3. Reveal remaining gifts sequentially with rhythmic timing
     for (let i = 0; i < this._count; i++) {
       if (i !== chosenIdx) {
         this._audio?.playBoxSecondClick();
         this._revealGift(i, multipliers[i], false);
-        await AnimationUtils.wait(80);
+        await AnimationUtils.wait(220);
       }
     }
   }
@@ -126,6 +162,7 @@ export class GiftPicker {
       const bScale = pos.bunchScale || 0.75;
       const bunch = this._createBunchContainer(pos.bunchKey, bx, by, bScale);
       this._parent.addChild(bunch);
+      this._bunches.push(bunch);
 
       // Fall animation: start from top above the screen
       const finalY = pos.y;
@@ -569,7 +606,7 @@ export class GiftPicker {
     // Display shadow sprite behind multiplier text for ALL revealed gifts
     if (shadowSprite) {
       shadowSprite.alpha = isChosen ? 1.0 : 0.85;
-      shadowSprite.scale.set(isChosen ? 0.52 : 0.42); // Proportions updated for slightly smaller text
+      shadowSprite.scale.set(isChosen ? 0.70 : 0.55);
     }
 
     mulTxt.text = `×${multiplier}`;

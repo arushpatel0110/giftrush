@@ -69,6 +69,11 @@ export class InfoButton extends PIXI.Container {
     if (isPortrait) {
       if (this._hideTimer) clearTimeout(this._hideTimer);
       if (this._popupMenu) this._popupMenu.visible = false;
+      if (this._hoverZone) this._hoverZone.visible = false;
+      this.hitArea = new PIXI.Rectangle(-45, -45, 90, 90);
+    } else {
+      if (this._hoverZone) this._hoverZone.visible = true;
+      this.hitArea = new PIXI.Rectangle(-70, -205, 140, 255);
     }
     this._updateTexture();
   }
@@ -79,6 +84,7 @@ export class InfoButton extends PIXI.Container {
     hoverZone.beginFill(0x000000, 0.001);
     hoverZone.drawRect(-70, -205, 140, 255);
     hoverZone.endFill();
+    this._hoverZone = hoverZone;
     hoverZone.interactive = true;
     hoverZone.cursor = 'pointer';
     this.addChild(hoverZone);
@@ -247,7 +253,6 @@ export class InfoButton extends PIXI.Container {
         this._sprite.width = 82;
         this._sprite.height = 82;
       } else {
-        this._sprite.scale.set(1.0);
         if (this._disabled) {
           this._sprite.texture = this._texNormal;
         } else if (this._isPressed && this._texClick) {
@@ -257,6 +262,7 @@ export class InfoButton extends PIXI.Container {
         } else {
           this._sprite.texture = this._texNormal;
         }
+        this._sprite.scale.set(1.0);
       }
     }
   }

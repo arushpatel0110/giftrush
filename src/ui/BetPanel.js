@@ -395,6 +395,9 @@ export class BetPanel extends PIXI.Container {
 
   updateLayout(isPortrait) {
     this._isPortrait = isPortrait;
+    if (isPortrait && this._isMenuOpen) {
+      this._closeMenu();
+    }
     this._updateBgTexture();
 
     if (isPortrait) {
@@ -410,6 +413,14 @@ export class BetPanel extends PIXI.Container {
         this._betText.x = 60;
         this._betText.y = -105;
       }
+      if (this._clickableArea) {
+        this._clickableArea.clear();
+        this._clickableArea.beginFill(0x000000, 0.001);
+        this._clickableArea.drawRect(-45, -45, 90, 90);
+        this._clickableArea.endFill();
+        this._clickableArea.interactive = this._enabled;
+        this._clickableArea.cursor = this._enabled ? 'pointer' : 'default';
+      }
     } else {
       if (this._btnUp) this._btnUp.visible = true;
       if (this._btnDown) this._btnDown.visible = true;
@@ -422,6 +433,14 @@ export class BetPanel extends PIXI.Container {
         this._betText.style.fontSize = 16;
         this._betText.x = 10;
         this._betText.y = 24;
+      }
+      if (this._clickableArea) {
+        this._clickableArea.clear();
+        this._clickableArea.beginFill(0x000000, 0.001);
+        this._clickableArea.drawRect(0, 0, 150, 48);
+        this._clickableArea.endFill();
+        this._clickableArea.interactive = this._enabled;
+        this._clickableArea.cursor = this._enabled ? 'pointer' : 'default';
       }
     }
   }

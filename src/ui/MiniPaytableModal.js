@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { SymbolConfig, SYMBOL_IDS } from '../config/SymbolConfig.js';
+import { GameConfig } from '../config/GameConfig.js';
 
 /**
  * MiniPaytableModal – Displays a pink mini paytable popup when a symbol on the reel grid is clicked.
@@ -20,12 +21,18 @@ export class MiniPaytableModal extends PIXI.Container {
     this._onClose = options.onClose;
 
     this.visible = false;
-    this.zIndex = 8000;
+    this.zIndex = 9995;
 
     this._buildUI();
   }
 
   show(symbolId, currentBet = 0.10, reelIndex = 0, rowIndex = 1, targetPos = null) {
+    this._lastSymbolId = symbolId;
+    this._lastBet = currentBet;
+    this._lastReelIndex = reelIndex;
+    this._lastRowIndex = rowIndex;
+    this._lastTargetPos = targetPos;
+
     this._updateContent(symbolId, currentBet, reelIndex, targetPos);
     this.visible = true;
     if (this.parent) {
@@ -84,6 +91,21 @@ export class MiniPaytableModal extends PIXI.Container {
 
   updateLayout(isPortrait = false) {
     this._isPortrait = isPortrait;
+    if (this.visible && this._lastSymbolId !== undefined && this._lastReelIndex !== undefined) {
+      const reelIndex = this._lastReelIndex;
+      const rowIndex = this._lastRowIndex ?? 1;
+      const S = GameConfig.SYMBOL_SIZE || 130;
+      const slotScale = isPortrait ? 1.0 : 1.15;
+      const gridW = 515;
+      const gridH = 390;
+      const gridX = isPortrait ? 95 : Math.round(640 - (gridW / 2) * slotScale);
+      const gridY = isPortrait ? 340 : Math.round(330 - (gridH / 2) * slotScale);
+      const reelX = GameConfig.getReelX ? GameConfig.getReelX(reelIndex) : reelIndex * S;
+      const targetX = gridX + (reelX + S * 0.5) * slotScale;
+      const targetY = gridY + (GameConfig.REEL_Y_OFFSET + rowIndex * S + S * 0.5) * slotScale;
+
+      this._updateContent(this._lastSymbolId, this._lastBet || 0.10, reelIndex, { x: targetX, y: targetY });
+    }
   }
 
   _updateContent(symbolId, bet, reelIndex = 0, targetPos = null) {
@@ -95,12 +117,19 @@ export class MiniPaytableModal extends PIXI.Container {
     const symbolTex = this._getSymbolTexture ? this._getSymbolTexture(symbolId) : null;
     const isBonus = symbolId === SYMBOL_IDS.BONUS || config.isBonus;
 
+    const isPortrait = !!this._isPortrait;
+    const modalScale = isPortrait ? 1.0 : 1.15;
+
+    if (this._bgSprite) {
+      this._bgSprite.width = 430 * modalScale;
+      this._bgSprite.height = 165 * modalScale;
+    }
+
     // Reel 0 (Left) & Reel 1 (Middle): Symbol on LEFT (-102.5), Text on RIGHT (+40)
     // Reel 2 (Right): Text on LEFT (-40), Symbol on RIGHT (+102.5)
     const isRightReel = reelIndex === 2;
-    const offset = 102.5;
+    const offset = 102.5 * modalScale;
 
-    const isPortrait = !!this._isPortrait;
     const minY = isPortrait ? 250 : 120;
     const maxY = isPortrait ? 950 : 510;
     const centerW = isPortrait ? 720 : 1280;
@@ -128,7 +157,7 @@ export class MiniPaytableModal extends PIXI.Container {
         bonusSprite.x = symX;
         bonusSprite.y = 0;
 
-        const maxS = 130; // Match reel symbol size exactly
+        const maxS = 130 * modalScale; // Match reel symbol size exactly
         const scale = Math.min(maxS / bonusSprite.texture.width, maxS / bonusSprite.texture.height);
         bonusSprite.scale.set(scale);
         this._contentGroup.addChild(bonusSprite);
@@ -137,7 +166,7 @@ export class MiniPaytableModal extends PIXI.Container {
       // "BONUS" Text
       const bonusText = new PIXI.Text('BONUS', {
         fontFamily: 'Outfit, Arial, sans-serif',
-        fontSize: 26,
+        fontSize: Math.round(26 * modalScale),
         fontWeight: 'bold',
         fill: '#FFFFFF',
         dropShadow: true,
@@ -149,9 +178,9 @@ export class MiniPaytableModal extends PIXI.Container {
       bonusText.y = 0;
 
       if (isRightReel) {
-        bonusText.x = (offset - 65 - GAP) - bonusText.width * 0.5;
+        bonusText.x = (offset - (65 * modalScale) - GAP) - bonusText.width * 0.5;
       } else {
-        bonusText.x = (-offset + 65 + GAP) + bonusText.width * 0.5;
+        bonusText.x = (-offset + (65 * modalScale) + GAP) + bonusText.width * 0.5;
       }
       this._contentGroup.addChild(bonusText);
     } else {
@@ -164,7 +193,7 @@ export class MiniPaytableModal extends PIXI.Container {
 
       const prefixTxt = new PIXI.Text('3: ', {
         fontFamily: 'Outfit, Arial, sans-serif',
-        fontSize: 22,
+        fontSize: Math.round(22 * modalScale),
         fontWeight: 'bold',
         fill: '#E0E0E0',
       });
@@ -175,7 +204,7 @@ export class MiniPaytableModal extends PIXI.Container {
 
       const valTxt = new PIXI.Text(`${winVal} FUN`, {
         fontFamily: 'Outfit, Arial, sans-serif',
-        fontSize: 24,
+        fontSize: Math.round(24 * modalScale),
         fontWeight: 'bold',
         fill: '#FFFFFF',
         dropShadow: true,
@@ -192,12 +221,10 @@ export class MiniPaytableModal extends PIXI.Container {
 
       if (isRightReel) {
         // Text is to the LEFT of the symbol (symbol is at +offset)
-        // Position text right edge at (+offset - 65 - GAP)
-        textContainer.x = (offset - 65 - GAP) - totalTextW;
+        textContainer.x = (offset - (65 * modalScale) - GAP) - totalTextW;
       } else {
         // Text is to the RIGHT of the symbol (symbol is at -offset)
-        // Position text left edge at (-offset + 65 + GAP)
-        textContainer.x = (-offset + 65 + GAP);
+        textContainer.x = (-offset + (65 * modalScale) + GAP);
       }
 
       this._contentGroup.addChild(textContainer);
@@ -209,7 +236,7 @@ export class MiniPaytableModal extends PIXI.Container {
         symSprite.x = symX;
         symSprite.y = 0;
 
-        const maxS = 130; // Match reel symbol size exactly
+        const maxS = 130 * modalScale; // Match reel symbol size exactly
         const scale = Math.min(maxS / symSprite.texture.width, maxS / symSprite.texture.height);
         symSprite.scale.set(scale);
         this._contentGroup.addChild(symSprite);

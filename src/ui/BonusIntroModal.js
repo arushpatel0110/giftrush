@@ -34,6 +34,12 @@ export class BonusIntroModal extends PIXI.Container {
       this._popupContainer.x = W / 2;
       this._popupContainer.y = H / 2;
     }
+    if (this._backdrop) {
+      this._backdrop.clear();
+      this._backdrop.beginFill(0x000000, 0.75);
+      this._backdrop.drawRect(-W * 3, -H * 3, W * 7, H * 7);
+      this._backdrop.endFill();
+    }
   }
 
   /**
@@ -50,10 +56,14 @@ export class BonusIntroModal extends PIXI.Container {
       this.visible = true;
       this.alpha = 1;
 
-      // Hide bgshine sprite initially so it only appears after animation completes
+      // Hide bgshine sprite & blue glow bugs container initially so they only appear after animation completes
       if (this._bgShineSprite) {
         this._bgShineSprite.visible = false;
         this._bgShineSprite.alpha = 0;
+      }
+      if (this._blueBugsContainer) {
+        this._blueBugsContainer.visible = false;
+        this._blueBugsContainer.alpha = 0;
       }
 
       const showShine = () => {
@@ -61,12 +71,17 @@ export class BonusIntroModal extends PIXI.Container {
           this._bgShineSprite.visible = true;
           AnimationUtils.fadeTo(this._bgShineSprite, 0.85, 300);
         }
+        if (this._blueBugsContainer && this.visible) {
+          this._blueBugsContainer.visible = true;
+          AnimationUtils.fadeTo(this._blueBugsContainer, 1.0, 300);
+        }
       };
 
       if (this._spine && this._spine.state) {
         try {
           this._spine.state.clearListeners();
           this._spine.state.setAnimation(0, 'popup-open', false);
+          this._spine.state.timeScale = 1.2;
           
           // Listen for completion of popup-open animation
           this._spine.state.addListener({
@@ -82,7 +97,7 @@ export class BonusIntroModal extends PIXI.Container {
             if (this.visible && this._bgShineSprite && !this._bgShineSprite.visible) {
               showShine();
             }
-          }, 600);
+          }, 450);
         } catch (err) {
           console.warn('Error playing Spine popup-open animation:', err);
           showShine();
@@ -100,7 +115,10 @@ export class BonusIntroModal extends PIXI.Container {
     this._stopPulse();
 
     if (this._bgShineSprite) {
-      AnimationUtils.fadeTo(this._bgShineSprite, 0, 200);
+      AnimationUtils.fadeTo(this._bgShineSprite, 0, 180);
+    }
+    if (this._blueBugsContainer) {
+      AnimationUtils.fadeTo(this._blueBugsContainer, 0, 180);
     }
 
     const finish = () => {
@@ -116,6 +134,7 @@ export class BonusIntroModal extends PIXI.Container {
       try {
         this._spine.state.clearListeners();
         this._spine.state.setAnimation(0, 'popup-close', false);
+        this._spine.state.timeScale = 1.4;
         this._spine.state.addListener({
           complete: (entry) => {
             if (entry && entry.animation && entry.animation.name === 'popup-close') {
@@ -124,7 +143,7 @@ export class BonusIntroModal extends PIXI.Container {
           }
         });
         // Fallback timer in case Spine listener misses event
-        setTimeout(finish, 700);
+        setTimeout(finish, 400);
       } catch (err) {
         console.warn('Error playing Spine popup-close animation:', err);
         finish();
@@ -162,15 +181,20 @@ export class BonusIntroModal extends PIXI.Container {
     // ── 1. Fullscreen Dark Backdrop ─────────────────────────────
     const backdrop = new PIXI.Graphics();
     backdrop.beginFill(0x000000, 0.75);
-    backdrop.drawRect(-W, -H, W * 3, H * 3);
+    backdrop.drawRect(-W * 2, -H * 2, W * 5, H * 5);
     backdrop.endFill();
     backdrop.interactive = true;
     backdrop.buttonMode = true;
     backdrop.cursor = 'pointer';
-    backdrop.on('pointerdown', (e) => {
+    const intercept = (e) => {
       e.stopPropagation();
       this._handleContinue();
-    });
+    };
+    backdrop.on('pointerdown', intercept);
+    backdrop.on('pointerup', (e) => e.stopPropagation());
+    backdrop.on('click', (e) => e.stopPropagation());
+    backdrop.on('tap', (e) => e.stopPropagation());
+    this._backdrop = backdrop;
     this.addChild(backdrop);
 
     // ── 2. Popup Content Container ───────────────────────────────
@@ -196,6 +220,9 @@ export class BonusIntroModal extends PIXI.Container {
       content.addChild(this._bgShineSprite);
     }
 
+    // ── 3b. Blue Glow Bugs Particle Overlay around Popup ───────────
+    this._buildBlueGlowBugs();
+
     // ── 4. Spine Animation (bonus_game_pop_up) ───────────────────
     const spineData = this._getSpineData ? this._getSpineData('bonus_game_pop_up') : null;
     if (spineData) {
@@ -204,7 +231,7 @@ export class BonusIntroModal extends PIXI.Container {
         this._spine.scale.set(0.64, 0.72);
         this._spine.x = 0;
         this._spine.y = 30;
-        this._spine.zIndex = 2;
+        this._spine.zIndex = 5;
         content.addChild(this._spine);
       } catch (err) {
         console.warn('Could not instantiate Spine bonus_game_pop_up:', err);
@@ -292,5 +319,103 @@ export class BonusIntroModal extends PIXI.Container {
     this._clickPrompt.y = 279;
     this._clickPrompt.zIndex = 25;
     content.addChild(this._clickPrompt);
+  }
+
+  _buildBlueGlowBugs() {
+    this._blueBugsContainer = new PIXI.Container();
+    this._blueBugsContainer.zIndex = 2; // In front of bgshine (zIndex 1), behind Spine animation (zIndex 5)
+    this._popupContainer.addChild(this._blueBugsContainer);
+
+    const blueTex = this._getTexture ? this._getTexture('blue_glow_bug') : null;
+    this._blueBugs = [];
+    const count = 80;
+
+    // Center coordinates adjusted slightly down for balanced coverage
+    const cx = -25;
+    const cy = 20;
+    const rx = 380; // Balanced horizontal width area to cover bgshine.webp
+    const ry = 240;
+
+    for (let i = 0; i < count; i++) {
+      let bug;
+      if (blueTex && blueTex !== PIXI.Texture.WHITE) {
+        bug = new PIXI.Sprite(blueTex);
+        bug.anchor.set(0.5);
+        bug.tint = 0x00E5FF;
+      } else {
+        bug = new PIXI.Graphics();
+        const r = 2.5 + Math.random() * 3.5;
+        bug.beginFill(0x00E5FF, 1.0);
+        bug.drawCircle(0, 0, r);
+        bug.endFill();
+      }
+
+      try {
+        bug.blendMode = PIXI.BLEND_MODES.ADD;
+      } catch (e) {}
+
+      const angle = Math.random() * Math.PI * 2;
+      const distRatio = 0.15 + Math.random() * 0.85;
+      const startX = cx + Math.cos(angle) * (rx * distRatio);
+      const startY = cy + Math.sin(angle) * (ry * distRatio);
+
+      const baseScale = 0.30 + Math.random() * 0.40;
+      bug.scale.set(baseScale);
+      bug.x = startX;
+      bug.y = startY;
+
+      this._blueBugsContainer.addChild(bug);
+
+      this._blueBugs.push({
+        sprite: bug,
+        angle: angle,
+        distRatio: distRatio,
+        baseScale: baseScale,
+        baseX: startX,
+        baseY: startY,
+        vx: (Math.random() - 0.5) * 0.40,
+        vy: (Math.random() - 0.5) * 0.40,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.016 + Math.random() * 0.020,
+        floatRadiusX: 12 + Math.random() * 16,
+        floatRadiusY: 10 + Math.random() * 14,
+      });
+    }
+
+    this._bugsTickHandler = () => {
+      if (!this.visible || !this._blueBugsContainer?.visible || !this._blueBugs) return;
+      this._blueBugs.forEach(b => {
+        b.phase += b.speed;
+        b.baseX += b.vx;
+        b.baseY += b.vy;
+
+        b.sprite.x = b.baseX + Math.sin(b.phase) * b.floatRadiusX;
+        b.sprite.y = b.baseY + Math.cos(b.phase * 0.8) * b.floatRadiusY;
+
+        const pulse = Math.sin(b.phase * 1.8);
+        b.sprite.alpha = 0.70 + 0.30 * pulse;
+        const scaleMod = b.baseScale * (1 + 0.18 * pulse);
+        b.sprite.scale.set(scaleMod);
+
+        const dist = Math.hypot((b.baseX - cx) / rx, (b.baseY - cy) / ry);
+        if (dist > 1.15) {
+          const newAngle = Math.random() * Math.PI * 2;
+          const newRatio = 0.15 + Math.random() * 0.85;
+          b.baseX = cx + Math.cos(newAngle) * (rx * newRatio);
+          b.baseY = cy + Math.sin(newAngle) * (ry * newRatio);
+          b.sprite.x = b.baseX;
+          b.sprite.y = b.baseY;
+        }
+      });
+    };
+    PIXI.Ticker.shared.add(this._bugsTickHandler);
+  }
+
+  destroy(options) {
+    if (this._bugsTickHandler) {
+      PIXI.Ticker.shared.remove(this._bugsTickHandler);
+      this._bugsTickHandler = null;
+    }
+    super.destroy(options);
   }
 }

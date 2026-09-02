@@ -81,6 +81,7 @@ export class BonusGame extends EventEmitter {
 
     // Big win celebration with wins_pop_up Spine animation based on picked gift!
     const chosenGiftNum = this._giftPicker ? this._giftPicker.getGiftNum(chosenIdx) : 1;
+    this.emit('celebrationStart');
     await this._showWinCelebration(multiplier, winAmount, chosenGiftNum);
     await AnimationUtils.wait(500); // Short hold after celebration & coins end
 
@@ -101,6 +102,69 @@ export class BonusGame extends EventEmitter {
   destroy() {
     this._destroyUI();
     this.container.destroy({ children: true });
+  }
+
+  updateLayout(isPortrait = false) {
+    const W = isPortrait ? GameConfig.PORTRAIT_WIDTH : GameConfig.WIDTH;
+    const H = isPortrait ? GameConfig.PORTRAIT_HEIGHT : GameConfig.HEIGHT;
+    this._celebrationW = W;
+    this._celebrationH = H;
+
+    const bgSprite = this.container.getChildByName('bg');
+    if (bgSprite) {
+      bgSprite.x = W / 2;
+      bgSprite.y = H / 2;
+      bgSprite.width = isPortrait ? W * 1.80 : W * 1.20;
+      bgSprite.height = isPortrait ? H * 1.05 : H;
+    }
+
+    if (this._titleText) {
+      this._titleText.x = W / 2;
+      this._titleText.y = isPortrait ? H * 0.07 : H * 0.03;
+    }
+
+    if (this._winText) {
+      this._winText.x = W / 2;
+      this._winText.y = H * 0.88;
+    }
+
+    this._giftPicker?.updateLayout?.(isPortrait, W, H);
+
+    // Dynamic repositioning for active bonus win celebration elements
+    if (this._celebrationGroup && !this._celebrationGroup.destroyed) {
+      if (this._dimOverlay && !this._dimOverlay.destroyed) {
+        this._dimOverlay.clear();
+        this._dimOverlay.beginFill(0x000000, 0.75);
+        this._dimOverlay.drawRect(-W, -H, W * 3, H * 3);
+        this._dimOverlay.endFill();
+      }
+      if (this._shineSprite && !this._shineSprite.destroyed) {
+        this._shineSprite.x = W / 2;
+        this._shineSprite.y = H * 0.50;
+        this._shineSprite.scale.set(isPortrait ? 1.35 : 1.25);
+      }
+      if (this._winsSpine && !this._winsSpine.destroyed) {
+        this._winsSpine.x = W / 2;
+        const animName = this._winsSpine.state?.tracks?.[0]?.animation?.name || '';
+        this._winsSpine.y = animName.endsWith('_4') ? H * 0.44 : H * 0.52;
+      }
+      if (this._topWinText && !this._topWinText.destroyed) {
+        this._topWinText.x = W / 2;
+        this._topWinText.y = H * 0.16;
+      }
+      if (this._ribbonSprite && !this._ribbonSprite.destroyed) {
+        this._ribbonSprite.x = W / 2;
+        this._ribbonSprite.y = isPortrait ? H * 0.58 : H * 0.65;
+      }
+      if (this._ribbonText && !this._ribbonText.destroyed) {
+        this._ribbonText.x = W / 2;
+        this._ribbonText.y = isPortrait ? H * 0.58 : H * 0.65;
+      }
+      if (this._bottomBetText && !this._bottomBetText.destroyed) {
+        this._bottomBetText.x = W / 2;
+        this._bottomBetText.y = isPortrait ? H * 0.70 : H * 0.79;
+      }
+    }
   }
 
   // ── Private ────────────────────────────────────────────────
@@ -137,7 +201,8 @@ export class BonusGame extends EventEmitter {
     });
     title.anchor.set(0.5, 0);
     title.x = W / 2;
-    title.y = H * 0.03;
+    title.y = isPortrait ? H * 0.07 : H * 0.03;
+    this._titleText = title;
     this.container.addChild(title);
 
     // Raining Glowing White Snow Particles
@@ -174,6 +239,7 @@ export class BonusGame extends EventEmitter {
     const celebrationGroup = new PIXI.Container();
     celebrationGroup.zIndex = 100;
     this.container.addChild(celebrationGroup);
+    this._celebrationGroup = celebrationGroup;
 
     let spinePromise = Promise.resolve();
     let tickerFn = null;
@@ -184,6 +250,7 @@ export class BonusGame extends EventEmitter {
     dimOverlay.drawRect(-W, -H, W * 3, H * 3);
     dimOverlay.endFill();
     celebrationGroup.addChild(dimOverlay);
+    this._dimOverlay = dimOverlay;
 
     // 1. Shining background flare (shining.webp) behind Spine animation (wins_pop_up)
     const shineTex = this._getTexture ? (this._getTexture('shining') || this._getTexture('bg_shine') || this._getTexture('bgshine')) : null;
@@ -194,6 +261,7 @@ export class BonusGame extends EventEmitter {
       shineSprite.y = isPortrait ? H * 0.50 : H * 0.50;
       shineSprite.scale.set(isPortrait ? 1.35 : 1.25);
       celebrationGroup.addChild(shineSprite);
+      this._shineSprite = shineSprite;
 
       // Continuous rotation ticker for shining flare
       tickerFn = () => {
@@ -213,6 +281,8 @@ export class BonusGame extends EventEmitter {
         spine.y = H * 0.52;
         spine.scale.set(0.60);
         spine.name = 'winsSpine';
+        spine.state.timeScale = 1.25;
+        this._winsSpine = spine;
 
         const prefix = String(giftNum || 1);
 
@@ -235,11 +305,11 @@ export class BonusGame extends EventEmitter {
           const listener = {
             start: (entry) => {
               const animName = entry && entry.animation ? entry.animation.name : '';
+              const curH = this._celebrationH || H;
               if (animName.endsWith('_4')) {
-                // The 4th animation (_4) asset is drawn slightly low, so shift spine.y UP for _4
-                spine.y = H * 0.44;
+                spine.y = curH * 0.44;
               } else {
-                spine.y = H * 0.52;
+                spine.y = curH * 0.52;
               }
             },
             complete: () => {
@@ -251,7 +321,7 @@ export class BonusGame extends EventEmitter {
             }
           };
           spine.state.addListener(listener);
-          setTimeout(resolve, 2000 + targetTier * 1200); // Dynamic fallback timeout
+          setTimeout(resolve, Math.round((2000 + targetTier * 1200) / 1.25)); // Dynamic fallback timeout
         });
       } catch (e) {
         console.warn('Could not play wins_pop_up spine:', e);
@@ -276,13 +346,20 @@ export class BonusGame extends EventEmitter {
     topWinText.x = W / 2;
     topWinText.y = H * 0.16;
     celebrationGroup.addChild(topWinText);
+    this._topWinText = topWinText;
 
-    // Fast, responsive count-up effect (~700ms duration)
+    // Smooth count-up effect (350ms initial delay so animation starts first, 1400ms count-up duration)
     const startCountTime = Date.now();
-    const durationMs = 700;
+    const delayMs = 350;
+    const durationMs = 1400;
     const countTicker = () => {
       const elapsed = Date.now() - startCountTime;
-      const progress = Math.min(1, elapsed / durationMs);
+      if (elapsed < delayMs) {
+        if (topWinText && !topWinText.destroyed) topWinText.text = `0.00 FUN`;
+        return;
+      }
+      const activeElapsed = elapsed - delayMs;
+      const progress = Math.min(1, activeElapsed / durationMs);
       const easedProgress = 1 - Math.pow(1 - progress, 2); // Smooth ease-out quad
       const currentVal = winAmount * easedProgress;
       if (topWinText && !topWinText.destroyed) {
@@ -294,20 +371,24 @@ export class BonusGame extends EventEmitter {
     };
     PIXI.Ticker.shared.add(countTicker);
 
+    const ribbonY = isPortrait ? H * 0.58 : H * 0.65;
+    const bottomBetY = isPortrait ? H * 0.70 : H * 0.79;
+
     // 4. Ribbon banner (ribbon.webp)
     const ribbonTex = this._getTexture ? this._getTexture('ribbon') : null;
     if (ribbonTex) {
       const ribbonSprite = new PIXI.Sprite(ribbonTex);
       ribbonSprite.anchor.set(0.5);
       ribbonSprite.x = W / 2;
-      ribbonSprite.y = H * 0.65;
+      ribbonSprite.y = ribbonY;
       ribbonSprite.width = 760;
       ribbonSprite.height = 110;
       celebrationGroup.addChild(ribbonSprite);
+      this._ribbonSprite = ribbonSprite;
     }
 
     // 5. Ribbon text: "Total Win" in white cursive/italic font
-    const ribbonText = new PIXI.Text('Total Win', {
+    const ribbonText = new PIXI.Text('Big Win', {
       fontFamily: 'Magnolia Script, Magnolia-Script, cursive',
       fontSize: 58,
       fill: '#FFFFFF',
@@ -319,8 +400,9 @@ export class BonusGame extends EventEmitter {
     });
     ribbonText.anchor.set(0.5);
     ribbonText.x = W / 2;
-    ribbonText.y = H * 0.65;
+    ribbonText.y = ribbonY;
     celebrationGroup.addChild(ribbonText);
+    this._ribbonText = ribbonText;
 
     // 6. Bottom Multiplier text: e.g. "47x bet" (white text with pink stroke & glow)
     const bottomBetText = new PIXI.Text(`${multiplier}x bet`, {
@@ -337,8 +419,9 @@ export class BonusGame extends EventEmitter {
     });
     bottomBetText.anchor.set(0.5);
     bottomBetText.x = W / 2;
-    bottomBetText.y = H * 0.79;
+    bottomBetText.y = bottomBetY;
     celebrationGroup.addChild(bottomBetText);
+    this._bottomBetText = bottomBetText;
 
     // 2.5 Animated bouncing coins fountain originating from wins_pop_up box
     const coinsContainer = new PIXI.Container();
@@ -356,11 +439,6 @@ export class BonusGame extends EventEmitter {
       let spawnIntervalFrames = 5; // Default: 1 coin every 5 frames (~12 coins/sec)
       if (multiplier >= 50) spawnIntervalFrames = 2;      // Big win: ~30 coins/sec
       else if (multiplier >= 25) spawnIntervalFrames = 3; // Large win: ~20 coins/sec
-      else if (multiplier >= 10) spawnIntervalFrames = 4; // Medium win: ~15 coins/sec
-
-      const originX = W / 2;
-      const originY = H * 0.50; // Spawns from wins_pop_up gift box center
-
       let frameCounter = 0;
       let spawningActive = true;
       const spawnStartTime = Date.now();
@@ -371,6 +449,11 @@ export class BonusGame extends EventEmitter {
         if (now - spawnStartTime > spawnDuration) {
           spawningActive = false;
         }
+
+        const curW = this._celebrationW || W;
+        const curH = this._celebrationH || H;
+        const originX = curW / 2;
+        const originY = curH * 0.50;
 
         frameCounter++;
         if (spawningActive && (frameCounter % spawnIntervalFrames === 0)) {
@@ -391,7 +474,7 @@ export class BonusGame extends EventEmitter {
           coin.rotationSpeed = (Math.random() - 0.5) * 0.14;
 
           // Ground landing level & bounce tracking
-          coin.groundY = H * 0.85 + Math.random() * 40;
+          coin.groundY = curH * 0.85 + Math.random() * 40;
           coin.bounces = 0;
           coin.maxBounces = 2 + Math.floor(Math.random() * 2); // 2 or 3 bounces on land
           coin.isSettling = false;
@@ -478,6 +561,15 @@ export class BonusGame extends EventEmitter {
     if (coinsContainer && !coinsContainer.destroyed) {
       coinsContainer.destroy({ children: true });
     }
+
+    this._celebrationGroup = null;
+    this._dimOverlay = null;
+    this._shineSprite = null;
+    this._winsSpine = null;
+    this._topWinText = null;
+    this._ribbonSprite = null;
+    this._ribbonText = null;
+    this._bottomBetText = null;
   }
 
   _buildSnowParticles() {

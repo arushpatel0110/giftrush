@@ -31,6 +31,7 @@ export class GameScene extends EventEmitter {
     this._spinning = false;
     this._autoplay = false;
     this._autoLeft = 0;
+    this._spacebarEnabled = true;
 
     this.container = new PIXI.Container();
     this.container.sortableChildren = true;
@@ -68,6 +69,9 @@ export class GameScene extends EventEmitter {
   stop() {
     if (this._onResize) {
       window.removeEventListener('resize', this._onResize);
+    }
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
     }
     this.container.destroy({ children: true });
   }
@@ -119,9 +123,19 @@ export class GameScene extends EventEmitter {
     const gridX = GameConfig.getGridX(isPortrait);
     const gridY = GameConfig.getGridY(isPortrait);
 
+    if (this._zoomAnimId) {
+      cancelAnimationFrame(this._zoomAnimId);
+      this._zoomAnimId = null;
+    }
+
     if (this._slotMachine && this._slotMachine.container) {
       this._slotMachine.updateLayout?.(isPortrait);
-      this._slotMachine.container.scale.set(1.0);
+      const slotScale = isPortrait ? 1.0 : 1.15;
+      this._slotMachine.container.scale.set(slotScale);
+      const gridW = 515;
+      const gridH = 390;
+      const gridX = isPortrait ? 95 : Math.round(640 - (gridW / 2) * slotScale);
+      const gridY = isPortrait ? 340 : Math.round(330 - (gridH / 2) * slotScale);
       this._slotMachine.container.x = gridX;
       this._slotMachine.container.y = gridY;
     }
@@ -132,6 +146,9 @@ export class GameScene extends EventEmitter {
         this._ui.hudContainer.x = 0;
         this._ui.hudContainer.y = 0;
       }
+    }
+    if (this._bonusGame) {
+      this._bonusGame.updateLayout?.(isPortrait);
     }
     this._currentZoomScale = 1.0;
   }
@@ -175,7 +192,9 @@ export class GameScene extends EventEmitter {
 
     this._slotMachine.on('paylineShow', (data) => {
       if (typeof data === 'object' && data !== null) {
-        this._ui?.updateWinPresentationDisplay(data.isAllTogether, data.paylineId, this._lastTotalWin);
+        this._ui?.updateWinPresentationDisplay(data.isAllTogether, data.paylineId, this._lastTotalWin, data.winningSymbolIds);
+      } else {
+        this._ui?.updateWinPresentationDisplay(false, null, 0, []);
       }
     });
 
@@ -197,12 +216,13 @@ export class GameScene extends EventEmitter {
     });
 
     this._slotMachine.on('bonusTriggered', async (result) => {
-      await AnimationUtils.wait(300);
+      await AnimationUtils.wait(200);
       this._audio?.playWaitingBg();
       await this._ui.showBonusIntro();
       this._audio?.stopWaitingBg();
       this._audio?.playBoxPopClick();
       await this._runBonusGame();
+      this._slotMachine?.clearWinOverlays?.();
       this._finishSpin();
     });
 
@@ -230,22 +250,26 @@ export class GameScene extends EventEmitter {
       this._currentZoomScale = curScale;
 
       const isPortrait = window.innerHeight > window.innerWidth;
-      const gridX = GameConfig.getGridX(isPortrait);
-      const gridY = GameConfig.getGridY(isPortrait);
+      const slotBaseScale = isPortrait ? 1.0 : 1.15;
+      const effectiveScale = curScale * slotBaseScale;
+      const gridW = 515;
+      const gridH = 390;
+      const gridX = isPortrait ? 95 : Math.round(640 - (gridW / 2) * slotBaseScale);
+      const gridY = isPortrait ? 340 : Math.round(330 - (gridH / 2) * slotBaseScale);
 
       // Smoothly zoom slot machine container around center of reel grid
       if (this._slotMachine && this._slotMachine.container) {
-        const pivotX = gridX + 260; // Center of 3 reels
-        const pivotY = gridY + 195; // Center of 3 rows
-        this._slotMachine.container.scale.set(curScale);
+        const pivotX = gridX + (gridW / 2) * slotBaseScale;
+        const pivotY = gridY + (gridH / 2) * slotBaseScale;
+        this._slotMachine.container.scale.set(effectiveScale);
         this._slotMachine.container.x = gridX - (pivotX - gridX) * (curScale - 1);
         this._slotMachine.container.y = gridY - (pivotY - gridY) * (curScale - 1);
       }
 
       // Smoothly zoom HUD elements (5 lines ribbon, Buy Bonus button) together with slot frame
       if (this._ui && this._ui.hudContainer) {
-        const pivotX = gridX + 260;
-        const pivotY = gridY + 195;
+        const pivotX = gridX + (gridW / 2) * slotBaseScale;
+        const pivotY = gridY + (gridH / 2) * slotBaseScale;
         this._ui.hudContainer.scale.set(curScale);
         this._ui.hudContainer.x = -pivotX * (curScale - 1);
         this._ui.hudContainer.y = -pivotY * (curScale - 1);
@@ -318,10 +342,27 @@ export class GameScene extends EventEmitter {
     // Temporary shortcuts for fast testing:
     //   Enter → opens Bonus Game directly
     //   P     → forces 2 paylines (top & middle rows) win on next spin
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+    this._onKeyDown = (e) => {
+      if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
-        this._runBonusGame();
+        // Check if Spacebar to spin setting is turned ON
+        if (this._spacebarEnabled) {
+          // Do not spin if any modal popups are open (Settings, Paytable, History, Autoplay, etc.)
+          if (this._ui && typeof this._ui.isAnyModalOpen === 'function' && this._ui.isAnyModalOpen()) {
+            return;
+          }
+          // Do not spin if bonus game is active
+          if (this._bonusGame && this._bonusGame.active) {
+            return;
+          }
+          if (!this._spinning) {
+            if (this._balance >= this._bet) {
+              this._onSpinClick();
+            } else {
+              this._ui?.showMessage('Insufficient balance!', 0xFF4444);
+            }
+          }
+        }
       }
       if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
@@ -331,7 +372,8 @@ export class GameScene extends EventEmitter {
           this._onSpinClick();
         }
       }
-    });
+    };
+    window.addEventListener('keydown', this._onKeyDown);
   }
 
   // ── Spin flow ────────────────────────────────────────────────
@@ -506,12 +548,24 @@ export class GameScene extends EventEmitter {
   }
 
   async _runBonusGame() {
-    this._ui?.setBottomBarVisible(false);
+    this._ui?.setBonusActive(true);
+    this._ui?.setHUDVisible(true);
+    this._ui?.setBottomBarVisible(true);
+
+    const onCelebration = () => {
+      this._ui?.setBottomBarVisible(false);
+    };
+    this._bonusGame?.once('celebrationStart', onCelebration);
+
     try {
       const result = await this._bonusGame.play(this._bet);
       return result;
     } finally {
+      this._bonusGame?.off('celebrationStart', onCelebration);
+      this._ui?.setBonusActive(false);
+      this._ui?.setHUDVisible(true);
       this._ui?.setBottomBarVisible(true);
+      this._slotMachine?.clearWinOverlays?.();
     }
   }
 

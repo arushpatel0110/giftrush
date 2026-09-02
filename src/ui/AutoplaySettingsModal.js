@@ -66,6 +66,11 @@ export class AutoplaySettingsModal extends PIXI.Container {
 
   updateLayout(isPortrait = false) {
     this._isPortrait = isPortrait;
+    this._panel = null;
+    this._panelBg = null;
+    this._headerContainer = null;
+    this._advancedSection = null;
+    this._bottomSection = null;
     this.removeChildren();
     this._buildUI();
   }

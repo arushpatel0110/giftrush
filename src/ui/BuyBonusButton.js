@@ -55,22 +55,35 @@ export class BuyBonusButton extends PIXI.Container {
     const giftY = isPortrait ? -40 : -148;
     const grassY = isPortrait ? 65 : -30;
     const btnX = isPortrait ? 250 : 0;
+    const btnY = isPortrait ? 50 : 65;
 
-    if (this._buyBtnSprite) this._buyBtnSprite.x = btnX;
-    if (this._bannerContainer) this._bannerContainer.x = btnX;
-    if (this._btnBg) this._btnBg.x = btnX;
+    if (this._buyBtnSprite) {
+      this._buyBtnSprite.x = btnX;
+      this._buyBtnSprite.y = btnY;
+    }
+    if (this._bannerContainer) {
+      this._bannerContainer.x = btnX;
+      this._bannerContainer.y = isPortrait ? 50 : 51;
+    }
+    if (this._btnBg) {
+      this._btnBg.x = btnX;
+      this._btnBg.y = btnY;
+    }
 
     if (this._giftSpine) this._giftSpine.y = giftY;
     if (this._bonusSprite) this._bonusSprite.y = giftY;
     if (this._grassBehindSprite) this._grassBehindSprite.y = grassY;
     if (this._grassSprite) {
-      this._grassSprite.y = grassY;
       if (isPortrait && this._grassPortraitTex && this._grassPortraitTex !== PIXI.Texture.WHITE) {
         this._grassSprite.texture = this._grassPortraitTex;
         this._grassSprite.scale.set(1.1);
+        this._grassSprite.y = 78; // Slight move down in portrait mode only
       } else if (this._grassOfBonusTex && this._grassOfBonusTex !== PIXI.Texture.WHITE) {
         this._grassSprite.texture = this._grassOfBonusTex;
         this._grassSprite.scale.set(0.65);
+        this._grassSprite.y = grassY;
+      } else {
+        this._grassSprite.y = grassY;
       }
     }
     if (this._bugsContainer) this._bugsContainer.y = isPortrait ? 95 : 0;
@@ -132,7 +145,7 @@ export class BuyBonusButton extends PIXI.Container {
         this._costUnit.style.fontSize = 18;
       }
     } else {
-      this._bannerContainer.y = 36;
+      this._bannerContainer.y = 51;
 
       if (this._titleText) {
         if (this._bonusActive) {
@@ -217,7 +230,7 @@ export class BuyBonusButton extends PIXI.Container {
     const whiteColor = 0xFFFFFF;
 
     if (this._titleText) {
-      if (!canClick) {
+      if (!canClick && !this._bonusActive) {
         this._titleText.style.fill = greyColor;
       } else {
         this._titleText.style.fill = this._bonusActive ? goldColor : whiteColor;
@@ -225,15 +238,15 @@ export class BuyBonusButton extends PIXI.Container {
     }
 
     if (this._costVal) {
-      this._costVal.style.fill = canClick ? goldColor : greyColor;
+      this._costVal.style.fill = (!canClick && !this._bonusActive) ? greyColor : goldColor;
     }
 
     if (this._costUnit) {
-      this._costUnit.style.fill = canClick ? goldColor : greyColor;
+      this._costUnit.style.fill = (!canClick && !this._bonusActive) ? greyColor : goldColor;
     }
 
     if (this._btnText) {
-      if (!canClick) {
+      if (!canClick && !this._bonusActive) {
         this._btnText.style.fill = greyColor;
       } else {
         this._btnText.style.fill = this._bonusActive ? goldColor : whiteColor;
@@ -361,7 +374,7 @@ export class BuyBonusButton extends PIXI.Container {
     if (initialTex && initialTex !== PIXI.Texture.WHITE) {
       this._buyBtnSprite = new PIXI.Sprite(initialTex);
       this._buyBtnSprite.anchor.set(0.5);
-      this._buyBtnSprite.y = 50;
+      this._buyBtnSprite.y = 65;
       this._buyBtnSprite.scale.set(0.52);
       this.addChild(this._buyBtnSprite);
       this._updateButtonTexture();
@@ -387,7 +400,7 @@ export class BuyBonusButton extends PIXI.Container {
 
     // ── 4. Cost Text & Title Display ──────────────────────────────
     this._bannerContainer = new PIXI.Container();
-    this._bannerContainer.y = 36;
+    this._bannerContainer.y = 51;
 
     this._titleText = new PIXI.Text('Buy Bonus', {
       fontFamily: 'Magnolia Script, Magnolia-Script, cursive',
@@ -474,28 +487,37 @@ export class BuyBonusButton extends PIXI.Container {
 
   _buildLightningBugs() {
     this._bugsContainer = new PIXI.Container();
-
-    // Subtle soft blur filter so yellow bugs stay sharp, bold and visible
-    try {
-      const blur = new PIXI.filters.BlurFilter(1.5);
-      this._bugsContainer.filters = [blur];
-    } catch (e) {
-      // Fallback if filters unavailable
-    }
-
     this.addChild(this._bugsContainer);
+
+    const blueTex = this._getTexture ? this._getTexture('blue_glow_bug') : null;
 
     this._bugs = [];
     const bugCount = 20;
 
     for (let i = 0; i < bugCount; i++) {
-      const bug = new PIXI.Graphics();
-      const r = 3.2 + Math.random() * 2.0;
+      let bug;
+      if (blueTex && blueTex !== PIXI.Texture.WHITE) {
+        bug = new PIXI.Sprite(blueTex);
+        bug.anchor.set(0.5);
+        bug.scale.set(0.28 + Math.random() * 0.22);
+        bug.tint = 0xFFDD00;
+      } else {
+        bug = new PIXI.Graphics();
+        const r = 2.5 + Math.random() * 2.0;
+        bug.beginFill(0xFF9900, 0.35);
+        bug.drawCircle(0, 0, r * 2.6);
+        bug.endFill();
+        bug.beginFill(0xFFEE00, 0.75);
+        bug.drawCircle(0, 0, r * 1.4);
+        bug.endFill();
+        bug.beginFill(0xFFFFFF, 1.0);
+        bug.drawCircle(0, 0, r * 0.7);
+        bug.endFill();
+      }
 
-      // Solid yellow glowing light particle (never washed out)
-      bug.beginFill(0xFFDD00, 1.0);
-      bug.drawCircle(0, 0, r);
-      bug.endFill();
+      try {
+        bug.blendMode = PIXI.BLEND_MODES.ADD;
+      } catch (e) {}
 
       const initialX = (Math.random() - 0.5) * 120;
       const initialY = -30 + (Math.random() - 0.5) * 35;
@@ -510,28 +532,29 @@ export class BuyBonusButton extends PIXI.Container {
         baseX: initialX,
         baseY: initialY,
         phase: Math.random() * Math.PI * 2,
-        speed: 0.005 + Math.random() * 0.007, // Slow gentle drift
-        radiusX: 6 + Math.random() * 10,
-        radiusY: 4 + Math.random() * 7,
+        speed: 0.005 + Math.random() * 0.007,
+        radiusX: 8 + Math.random() * 12,
+        radiusY: 6 + Math.random() * 9,
       });
     }
 
-    this._ticker = new PIXI.Ticker();
-    this._ticker.add(() => {
+    this._bugsTickHandler = (delta) => {
+      if (!this._bugs) return;
+      const dt = delta || 1;
       this._bugs.forEach(b => {
-        b.phase += b.speed;
+        b.phase += b.speed * dt;
         b.sprite.x = b.baseX + Math.sin(b.phase) * b.radiusX;
         b.sprite.y = b.baseY + Math.cos(b.phase * 0.7) * b.radiusY;
-        b.sprite.alpha = 0.85 + 0.15 * Math.sin(b.phase * 1.2); // High solid alpha (never transparent)
+        b.sprite.alpha = 0.80 + 0.20 * Math.sin(b.phase * 1.2);
       });
-    });
-    this._ticker.start();
+    };
+    PIXI.Ticker.shared.add(this._bugsTickHandler);
   }
 
   destroy(options) {
-    if (this._ticker) {
-      this._ticker.destroy();
-      this._ticker = null;
+    if (this._bugsTickHandler) {
+      PIXI.Ticker.shared.remove(this._bugsTickHandler);
+      this._bugsTickHandler = null;
     }
     super.destroy(options);
   }

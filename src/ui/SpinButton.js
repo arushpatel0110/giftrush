@@ -107,6 +107,7 @@ export class SpinButton extends PIXI.Container {
         } else {
           this._sprite.texture = texNormal || this._texNormal;
         }
+        this._sprite.scale.set(1.0);
       } else {
         if (this._disabled || this._state === 'spinning') {
           this._sprite.texture = this._texDisabled || this._texNormal;
@@ -115,6 +116,7 @@ export class SpinButton extends PIXI.Container {
         } else {
           this._sprite.texture = this._texNormal;
         }
+        this._sprite.scale.set(1.0);
       }
     } else if (this._body) {
       this._body.clear();

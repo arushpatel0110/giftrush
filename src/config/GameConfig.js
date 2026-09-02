@@ -4,9 +4,15 @@
  * free of magic numbers.
  */
 export const GameConfig = Object.freeze({
-  // ── Canvas ──────────────────────────────────────────────
+  // ── Canvas Base Dimensions (16:9 / 9:16) ──────────────
   WIDTH: 1280,
   HEIGHT: 720,
+
+  // ── Target Full-HD Display Resolutions ─────────────────
+  TARGET_WIDTH: 1920,
+  TARGET_HEIGHT: 1080,
+  PORTRAIT_TARGET_WIDTH: 1080,
+  PORTRAIT_TARGET_HEIGHT: 1920,
 
   // ── Portrait Canvas Base Dimensions ─────────────────────
   PORTRAIT_WIDTH: 720,
@@ -58,7 +64,7 @@ export const GameConfig = Object.freeze({
   // Stored in SymbolConfig.js; here just for reference.
 
   // ── Win animation ───────────────────────────────────────
-  WIN_FLASH_DURATION: 800,  // ms highlight per payline
+  WIN_FLASH_DURATION: 1500, // ms display duration per payline during one-by-one presentation
   WIN_COUNT_DURATION: 1200,  // ms to count up win amount
   WIN_BG_SIZE_MULTIPLIER: 1.45, // Scale relative to symbol size (SYMBOL_SIZE = 130px)
   WIN_BG_WIDTH: 235,         // Width in px for win-bg.png_80_80.webp

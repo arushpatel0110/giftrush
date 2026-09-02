@@ -323,6 +323,7 @@ export class AssetLoader {
       const texParticleOfBunch = await PIXI.Assets.load(particleOfBunchUrl);
       const texBlink = await PIXI.Assets.load(blinkUrl);
       const texGiftMultiplierShadow = await PIXI.Assets.load(giftMultiplierShadowUrl);
+      this._uiTextures.set('gift_multiplier_shadow', texGiftMultiplierShadow);
 
       const texFeature1 = await PIXI.Assets.load(feature1Url);
       const texFeature2 = await PIXI.Assets.load(feature2Url);
@@ -631,15 +632,15 @@ export class AssetLoader {
 
     // Load symbol spine win animations (sym_seven, sym_star, sym_bells, sym_mitten, sym_ball, sym_cookie, sym_stick, sym_hat, sym_elf)
     const symbolSpines = [
-      { key: 'sym_seven',  json: symSpineSevenJson,  atlas: symSpineSevenAtlas,  url: symSpineSevenUrl },
-      { key: 'sym_star',   json: symSpineStarJson,   atlas: symSpineStarAtlas,   url: symSpineStarUrl },
-      { key: 'sym_bells',  json: symSpineBellsJson,  atlas: symSpineBellsAtlas,  url: symSpineBellsUrl },
+      { key: 'sym_seven', json: symSpineSevenJson, atlas: symSpineSevenAtlas, url: symSpineSevenUrl },
+      { key: 'sym_star', json: symSpineStarJson, atlas: symSpineStarAtlas, url: symSpineStarUrl },
+      { key: 'sym_bells', json: symSpineBellsJson, atlas: symSpineBellsAtlas, url: symSpineBellsUrl },
       { key: 'sym_mitten', json: symSpineMittenJson, atlas: symSpineMittenAtlas, url: symSpineMittenUrl },
-      { key: 'sym_ball',   json: symSpineBallJson,   atlas: symSpineBallAtlas,   url: symSpineBallUrl },
+      { key: 'sym_ball', json: symSpineBallJson, atlas: symSpineBallAtlas, url: symSpineBallUrl },
       { key: 'sym_cookie', json: symSpineCookieJson, atlas: symSpineCookieAtlas, url: symSpineCookieUrl },
-      { key: 'sym_stick',  json: symSpineStickJson,  atlas: symSpineStickAtlas,  url: symSpineStickUrl },
-      { key: 'sym_hat',    json: symSpineHatJson,    atlas: symSpineHatAtlas,    url: symSpineHatUrl },
-      { key: 'sym_elf',    json: symSpineElfJson,    atlas: symSpineElfAtlas,    url: symSpineElfUrl },
+      { key: 'sym_stick', json: symSpineStickJson, atlas: symSpineStickAtlas, url: symSpineStickUrl },
+      { key: 'sym_hat', json: symSpineHatJson, atlas: symSpineHatAtlas, url: symSpineHatUrl },
+      { key: 'sym_elf', json: symSpineElfJson, atlas: symSpineElfAtlas, url: symSpineElfUrl },
     ];
 
     for (const s of symbolSpines) {

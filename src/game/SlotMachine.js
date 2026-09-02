@@ -77,10 +77,8 @@ export class SlotMachine extends EventEmitter {
 
     // ── Payline manager ────────────────────────────────────
     this._paylines = new PaylineManager(
-      parentContainer,
+      this.container,
       this._symbolGrid,
-      GameConfig.GRID_X,
-      GameConfig.GRID_Y,
     );
     this._paylines.on('paylineShow', (text) => this.emit('paylineShow', text));
 
@@ -88,13 +86,13 @@ export class SlotMachine extends EventEmitter {
     this._buildBackground();
 
     // ── Ticker ────────────────────────────────────────────
-    this._ticker = new PIXI.Ticker();
-    this._ticker.add(this._onTick, this);
-    this._ticker.start();
+    this._onTickHandler = (delta) => this._onTick(delta);
+    PIXI.Ticker.shared.add(this._onTickHandler);
 
     this._winLoopActive = false;
     this._winLoopCounter = 0;
     this._winSpines = [];
+    this._pendingBonusPositions = []; // tracks bonus positions per reel for progressive overlay
   }
 
   get isSpinning() { return this._spinning; }
@@ -117,6 +115,7 @@ export class SlotMachine extends EventEmitter {
     this._spinning = true;
     // Stop any win animation loop from the previous spin before starting a new one
     this._stopWinLoop();
+    this._pendingBonusPositions = []; // reset progressive bonus overlay tracker
     this.emit('spinStart');
 
     // Generate outcome
@@ -160,19 +159,23 @@ export class SlotMachine extends EventEmitter {
       await this._reels[i].stopOn(result[i], 0);
 
       if (!buyBonus) {
-        const bonusRow = result[i].findIndex(id => id === SYMBOL_IDS.BONUS || SymbolConfig[id]?.isBonus);
+        const bonusRows = result[i].reduce((acc, id, row) => {
+          if (id === SYMBOL_IDS.BONUS || SymbolConfig[id]?.isBonus) acc.push(row);
+          return acc;
+        }, []);
+        const hasBonusOnReel = bonusRows.length > 0;
 
         if (i === 0) {
-          if (bonusRow !== -1) {
+          if (hasBonusOnReel) {
             consecutiveBonusChain = 1;
-            this._showSingleBonusOverlay(0, bonusRow);
+            bonusRows.forEach(row => this._showSingleBonusOverlay(0, row));
           } else {
             consecutiveBonusChain = 0;
           }
         } else if (i === 1) {
-          if (bonusRow !== -1 && consecutiveBonusChain === 1) {
+          if (hasBonusOnReel && consecutiveBonusChain === 1) {
             consecutiveBonusChain = 2;
-            this._showSingleBonusOverlay(1, bonusRow);
+            bonusRows.forEach(row => this._showSingleBonusOverlay(1, row));
           } else {
             if (consecutiveBonusChain > 0) {
               this._stopWinAnimations();
@@ -180,7 +183,7 @@ export class SlotMachine extends EventEmitter {
             consecutiveBonusChain = 0;
           }
         } else if (i === 2) {
-          if (bonusRow !== -1 && consecutiveBonusChain === 2) {
+          if (hasBonusOnReel && consecutiveBonusChain === 2) {
             consecutiveBonusChain = 3;
           } else {
             if (consecutiveBonusChain > 0) {
@@ -238,6 +241,7 @@ export class SlotMachine extends EventEmitter {
     if (this._spinning) return;
     this._spinning = true;
     this._stopWinLoop();
+    this._pendingBonusPositions = []; // reset progressive bonus overlay tracker
     this.emit('spinStart');
 
     // ── Sanitize grid: guarantee every value is a clean integer ──
@@ -278,19 +282,23 @@ export class SlotMachine extends EventEmitter {
 
       await this._reels[i].stopOn(cleanGrid[i], 0);
 
-      const bonusRow = cleanGrid[i].findIndex(id => id === SYMBOL_IDS.BONUS || SymbolConfig[id]?.isBonus);
+      const bonusRows = cleanGrid[i].reduce((acc, id, row) => {
+        if (id === SYMBOL_IDS.BONUS || SymbolConfig[id]?.isBonus) acc.push(row);
+        return acc;
+      }, []);
+      const hasBonusOnReel = bonusRows.length > 0;
 
       if (i === 0) {
-        if (bonusRow !== -1) {
+        if (hasBonusOnReel) {
           consecutiveBonusChain = 1;
-          this._showSingleBonusOverlay(0, bonusRow);
+          bonusRows.forEach(row => this._showSingleBonusOverlay(0, row));
         } else {
           consecutiveBonusChain = 0;
         }
       } else if (i === 1) {
-        if (bonusRow !== -1 && consecutiveBonusChain === 1) {
+        if (hasBonusOnReel && consecutiveBonusChain === 1) {
           consecutiveBonusChain = 2;
-          this._showSingleBonusOverlay(1, bonusRow);
+          bonusRows.forEach(row => this._showSingleBonusOverlay(1, row));
         } else {
           if (consecutiveBonusChain > 0) {
             this._stopWinAnimations();
@@ -298,7 +306,7 @@ export class SlotMachine extends EventEmitter {
           consecutiveBonusChain = 0;
         }
       } else if (i === 2) {
-        if (bonusRow !== -1 && consecutiveBonusChain === 2) {
+        if (hasBonusOnReel && consecutiveBonusChain === 2) {
           consecutiveBonusChain = 3;
         } else {
           if (consecutiveBonusChain > 0) {
@@ -437,13 +445,13 @@ export class SlotMachine extends EventEmitter {
             const hasTrigger = available.includes('elf_trigger');
 
             if (hasStop && hasTrigger) {
-              // First play elf_stop 2 times, then play elf_trigger 1 time
               spine.state.setAnimation(0, 'elf_stop', false);
-              spine.state.addAnimation(0, 'elf_stop', false, 0);
               spine.state.addAnimation(0, 'elf_trigger', false, 0);
+              spine.state.timeScale = 0.85;
             } else {
               const animName = available.find(n => n.includes('trigger') || n.includes('win') || n.includes('play')) || available[0] || 'animation';
               spine.state.setAnimation(0, animName, true);
+              spine.state.timeScale = 0.85;
             }
 
             this.container.addChild(spine);
@@ -455,7 +463,7 @@ export class SlotMachine extends EventEmitter {
       }
     });
 
-    await AnimationUtils.wait(3500);
+    await AnimationUtils.wait(1700);
   }
 
   /** Flash all bonus symbol cells with win-bg and Spine elf animation. */
@@ -520,42 +528,61 @@ export class SlotMachine extends EventEmitter {
 
     cell.setStaticVisible(false);
 
-    // 1. Win-bg glow sprite behind the bonus symbol
+    // Store this bonus position for later use when more reels land
+    this._pendingBonusPositions.push({ reel, row, cx, cy });
+
     const winBgTex = this._getUITexture ? this._getUITexture('win_bg_symbol') : null;
-    if (winBgTex && winBgTex !== PIXI.Texture.WHITE) {
+    const hasWinBg = winBgTex && winBgTex !== PIXI.Texture.WHITE;
+
+    const addWinBg = (bx, by) => {
+      if (!hasWinBg) return;
       const bg = new PIXI.Sprite(winBgTex);
       bg.anchor.set(0.5);
-      bg.x = cx;
-      bg.y = cy;
+      bg.x = bx;
+      bg.y = by;
       bg.width = GameConfig.WIN_BG_WIDTH ?? (S * 1.45);
       bg.height = GameConfig.WIN_BG_HEIGHT ?? (S * 1.45);
+      bg.zIndex = 30;
       this.container.addChild(bg);
       this._winSpines.push(bg);
-    }
+    };
 
-    // 2. Spine elf animation on top layer
-    if (this._getSpineData) {
+    const addSpine = (bx, by) => {
+      if (!this._getSpineData) return;
       const spineData = this._getSpineData('sym_elf');
-      if (spineData) {
-        try {
-          const spine = new Spine(spineData);
-          const skelW = spineData.width || S;
-          const skelH = spineData.height || S;
-          const scale = Math.min(S / skelW, S / skelH) * 1.05;
-          spine.scale.set(scale);
-          spine.x = cx;
-          spine.y = cy;
-
-          const available = spineData.animations?.map(a => a.name) ?? [];
-          const animName = available.includes('elf_stop') ? 'elf_stop' : (available[0] || 'animation');
-          spine.state.setAnimation(0, animName, true);
-
-          this.container.addChild(spine);
-          this._winSpines.push(spine);
-        } catch (err) {
-          console.warn('[SlotMachine] Could not play single bonus elf spine:', err);
-        }
+      if (!spineData) return;
+      try {
+        const spine = new Spine(spineData);
+        const skelW = spineData.width || S;
+        const skelH = spineData.height || S;
+        const scale = Math.min(S / skelW, S / skelH) * 1.05;
+        spine.scale.set(scale);
+        spine.x = bx;
+        spine.y = by;
+        spine.zIndex = 40;
+        const available = spineData.animations?.map(a => a.name) ?? [];
+        const animName = available.includes('elf_stop') ? 'elf_stop' : (available[0] || 'animation');
+        spine.state.setAnimation(0, animName, true);
+        this.container.addChild(spine);
+        this._winSpines.push(spine);
+      } catch (err) {
+        console.warn('[SlotMachine] Could not play single bonus elf spine:', err);
       }
+    };
+
+    if (reel === 0) {
+      // ── Reel 0: Spine animation ONLY (no win-bg yet) ──────────────────
+      addSpine(cx, cy);
+    } else {
+      // ── Reel 1+: add win-bg behind ALL previous bonus positions ────────
+      // then add win-bg + Spine for this reel too
+      this._pendingBonusPositions.forEach(pos => {
+        addWinBg(pos.cx, pos.cy);
+        // Also play Spine on this reel's position
+        if (pos.reel === reel) {
+          addSpine(pos.cx, pos.cy);
+        }
+      });
     }
   }
 
@@ -585,10 +612,8 @@ export class SlotMachine extends EventEmitter {
     const ALL_TOGETHER_MS = 2500;
     const ONE_BY_ONE_MS = GameConfig.WIN_FLASH_DURATION || 1500;
 
-    const isMultiPayline = wins.length > 1;
-
-    // ── Phase 1: ALL TOGETHER (First time only) ───────────────────
-    this._showWinPresentationState(wins, isMultiPayline, totalWin);
+    // ── Phase 1: ALL TOGETHER / TOTAL WIN (First time only) ───────────────────
+    this._showWinPresentationState(wins, true, totalWin);
     await AnimationUtils.wait(ALL_TOGETHER_MS);
     if (!this._winLoopActive || this._winLoopCounter !== currentLoopId) return;
 
@@ -694,6 +719,7 @@ export class SlotMachine extends EventEmitter {
               const available = spineData.animations?.map(a => a.name) ?? [];
               const animName = available.find(n => n.includes('win') || n.includes('trigger') || n.includes('play')) || available[0] || 'animation';
               spine.state.setAnimation(0, animName, true);
+              spine.state.timeScale = 0.85; // Slightly decrease win symbol animation speed as requested
 
               this.container.addChild(spine);
               this._winSpines.push(spine);
@@ -724,6 +750,14 @@ export class SlotMachine extends EventEmitter {
   }
 
   /** Stop the win presentation loop and clean up all overlays. */
+  clearWinOverlays() {
+    this._stopWinLoop();
+    this._stopWinAnimations();
+    if (this._paylines) {
+      this._paylines.clearAll();
+    }
+  }
+
   _stopWinLoop() {
     this._winLoopActive = false;
     this._winLoopCounter++;
@@ -771,12 +805,15 @@ export class SlotMachine extends EventEmitter {
       reel.on('symbolClick', (symbolId, reelIndex, rowIndex) => {
         if (!this._spinning) {
           const S = GameConfig.SYMBOL_SIZE;
-          const G = GameConfig.REEL_GAP;
           const isPortrait = !!this._isPortrait;
-          const gridX = GameConfig.getGridX ? GameConfig.getGridX(isPortrait) : (isPortrait ? 95 : 375);
-          const gridY = GameConfig.getGridY ? GameConfig.getGridY(isPortrait) : (isPortrait ? 340 : 135);
-          const targetX = gridX + (GameConfig.getReelX ? GameConfig.getReelX(reelIndex) : reelIndex * (S + G)) + S * 0.5;
-          const targetY = gridY + (GameConfig.REEL_Y_OFFSET ?? 0) + rowIndex * S + S * 0.5;
+          const slotScale = isPortrait ? 1.0 : 1.15;
+          const gridW = 515;
+          const gridH = 390;
+          const gridX = isPortrait ? 95 : Math.round(640 - (gridW / 2) * slotScale);
+          const gridY = isPortrait ? 340 : Math.round(330 - (gridH / 2) * slotScale);
+          const reelX = GameConfig.getReelX ? GameConfig.getReelX(reelIndex) : reelIndex * S;
+          const targetX = gridX + (reelX + S * 0.5) * slotScale;
+          const targetY = gridY + (GameConfig.REEL_Y_OFFSET + rowIndex * S + S * 0.5) * slotScale;
           this.emit('symbolClick', symbolId, reelIndex, rowIndex, { x: targetX, y: targetY });
         }
       });
@@ -877,24 +914,38 @@ export class SlotMachine extends EventEmitter {
   _buildTopGrassLightningBugs(gridW) {
     this._topBugsContainer = new PIXI.Container();
     this._topBugsContainer.zIndex = 60;
-    try {
-      const blur = new PIXI.filters.BlurFilter(1.5);
-      this._topBugsContainer.filters = [blur];
-    } catch (e) { }
-
     this.container.addChild(this._topBugsContainer);
 
+    const blueTex = this._getUITexture ? this._getUITexture('blue_glow_bug') : null;
+
     this._topBugs = [];
-    const count = 11;
+    const count = 15;
     const frameWidth = 680;
 
     for (let i = 0; i < count; i++) {
-      const bug = new PIXI.Graphics();
-      const r = 3.2 + Math.random() * 2.0;
+      let bug;
+      if (blueTex && blueTex !== PIXI.Texture.WHITE) {
+        bug = new PIXI.Sprite(blueTex);
+        bug.anchor.set(0.5);
+        bug.scale.set(0.28 + Math.random() * 0.22);
+        bug.tint = 0xFFDD00;
+      } else {
+        bug = new PIXI.Graphics();
+        const r = 2.5 + Math.random() * 2.0;
+        bug.beginFill(0xFF9900, 0.35);
+        bug.drawCircle(0, 0, r * 2.6);
+        bug.endFill();
+        bug.beginFill(0xFFEE00, 0.75);
+        bug.drawCircle(0, 0, r * 1.4);
+        bug.endFill();
+        bug.beginFill(0xFFFFFF, 1.0);
+        bug.drawCircle(0, 0, r * 0.7);
+        bug.endFill();
+      }
 
-      bug.beginFill(0xFFDD00, 1.0);
-      bug.drawCircle(0, 0, r);
-      bug.endFill();
+      try {
+        bug.blendMode = PIXI.BLEND_MODES.ADD;
+      } catch (e) {}
 
       const startX = (gridW / 2) + (Math.random() - 0.5) * frameWidth;
       const startY = -35 + (Math.random() - 0.5) * 35;
@@ -908,10 +959,10 @@ export class SlotMachine extends EventEmitter {
         sprite: bug,
         baseX: startX,
         baseY: startY,
-        vx: (Math.random() - 0.5) * 0.14, // Left / right drift
-        vy: -0.05 - Math.random() * 0.10,  // Super slow upward drift
+        vx: (Math.random() - 0.5) * 0.12,
+        vy: -0.06 - Math.random() * 0.08,
         phase: Math.random() * Math.PI * 2,
-        speed: 0.004 + Math.random() * 0.006, // Gentle slow speed
+        speed: 0.005 + Math.random() * 0.008,
         radiusX: 12 + Math.random() * 16,
         radiusY: 8 + Math.random() * 12,
         gridW: gridW,
@@ -921,12 +972,13 @@ export class SlotMachine extends EventEmitter {
   }
 
   _onTick(delta) {
+    const dt = delta || 1;
     this._reels.forEach(r => r.update(delta));
     if (this._topBugs) {
       this._topBugs.forEach(b => {
-        b.phase += b.speed;
-        b.baseX += b.vx;
-        b.baseY += b.vy;
+        b.phase += b.speed * dt;
+        b.baseX += b.vx * dt;
+        b.baseY += b.vy * dt;
         b.sprite.x = b.baseX + Math.sin(b.phase) * b.radiusX;
         b.sprite.y = b.baseY + Math.cos(b.phase * 0.7) * b.radiusY;
         b.sprite.alpha = 0.85 + 0.15 * Math.sin(b.phase * 1.5);

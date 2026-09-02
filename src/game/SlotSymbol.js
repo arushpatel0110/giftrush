@@ -141,6 +141,7 @@ export class SlotSymbol extends PIXI.Container {
 
       // Play animation
       spine.state.setAnimation(0, chosenAnim, loop);
+      spine.state.timeScale = 0.85; // Slightly decrease win symbol animation speed as requested
 
       // Hide static sprite while spine plays
       this._sprite.visible = false;

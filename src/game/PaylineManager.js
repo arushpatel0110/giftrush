@@ -10,23 +10,19 @@ import { AnimationUtils } from '../utils/AnimationUtils.js';
  */
 export class PaylineManager extends EventEmitter {
   /**
-   * @param {PIXI.Container}  stage       parent container
+   * @param {PIXI.Container}  stage       parent container (SlotMachine.container)
    * @param {SlotSymbol[][]}  symbolGrid  [reel][row] → SlotSymbol
-   * @param {number}          gridX       left x of the reel area
-   * @param {number}          gridY       top  y of the reel area
    */
-  constructor(stage, symbolGrid, gridX, gridY) {
+  constructor(stage, symbolGrid) {
     super();
-    this._stage      = stage;
+    this._stage = stage;
     this._symbolGrid = symbolGrid;  // [reel][row]
-    this._gridX      = gridX;
-    this._gridY      = gridY;
-    this._S          = GameConfig.SYMBOL_SIZE;
-    this._G          = GameConfig.REEL_GAP;
+    this._S = GameConfig.SYMBOL_SIZE;
+    this._G = GameConfig.REEL_GAP;
 
-    // Overlay for payline graphics
+    // Overlay for payline graphics inside SlotMachine container
     this._overlay = new PIXI.Container();
-    this._overlay.zIndex = 10;
+    this._overlay.zIndex = 100;
     stage.addChild(this._overlay);
 
     this._activeHighlights = [];
@@ -41,16 +37,18 @@ export class PaylineManager extends EventEmitter {
     this._clearOverlay();
 
     if (!wins || !wins.length) {
-      this.emit('paylineShow', '');
+      this.emit('paylineShow', { isAllTogether: false, paylineId: null, amount: 0, winningSymbolIds: [] });
       return;
     }
 
-    // Format data to be displayed on bottom strip
+    // Format data to be displayed on bottom strip & portrait top header
     if (isAllTogetherMode || wins.length > 1) {
-      this.emit('paylineShow', { isAllTogether: true, paylineId: null, totalWinAmount });
+      const winningSymbolIds = [...new Set(wins.map(w => w.symbolId))];
+      this.emit('paylineShow', { isAllTogether: true, paylineId: null, totalWinAmount, winningSymbolIds });
     } else {
       const win = wins[0];
-      this.emit('paylineShow', { isAllTogether: false, paylineId: win.paylineId, amount: win.amount });
+      const winningSymbolIds = win ? [win.symbolId] : [];
+      this.emit('paylineShow', { isAllTogether: false, paylineId: win.paylineId, amount: win.amount, winningSymbolIds });
     }
 
     const S = this._S;
@@ -61,25 +59,21 @@ export class PaylineManager extends EventEmitter {
     wins.forEach((win) => {
       const g = new PIXI.Graphics();
 
-      const isPortrait = window.innerHeight > window.innerWidth;
-      const gridX = GameConfig.getGridX ? GameConfig.getGridX(isPortrait) : this._gridX;
-      const gridY = GameConfig.getGridY ? GameConfig.getGridY(isPortrait) : this._gridY;
-
-      // Centres of the 3 winning symbols in this payline
+      // Centres of the 3 winning symbols in this payline (local to SlotMachine container)
       const centres = win.positions.map(([reel, row]) => ({
-        x: gridX + (GameConfig.getReelX ? GameConfig.getReelX(reel) : reel * (S + G)) + S * 0.5,
-        y: gridY + yOff + row * S + S * 0.5,
+        x: (GameConfig.getReelX ? GameConfig.getReelX(reel) : reel * (S + G)) + S * 0.5,
+        y: yOff + row * S + S * 0.5,
       }));
 
       const isDiagonal = Math.abs(centres[0].y - centres[2].y) > 10;
       const startX = centres[0].x - S * 0.5 - 12;
       const startY = centres[0].y;
-      const endX   = centres[2].x + S * 0.5 + 12;
-      const endY   = centres[2].y;
+      const endX = centres[2].x + S * 0.5 + 12;
+      const endY = centres[2].y;
 
       // Base colors for neon cyan laser beam matching the image
       const baseColor = 0x00E5FF; // Electric cyan
-      const midColor  = 0x66F0FF; // Bright cyan-white
+      const midColor = 0x66F0FF; // Bright cyan-white
       const coreColor = 0xFFFFFF; // Pure white core
 
       // ── Sample 40 points along the payline path for smooth end-tapering ──
@@ -115,25 +109,36 @@ export class PaylineManager extends EventEmitter {
         }
       }
 
-      // Helper to draw beam path with end-tapering (slight thinner width at both ends)
-      const drawBeamPath = (lineG, fullWidth, color, alpha) => {
-        const fadeRatio = 0.22; // Both ends taper down smoothly in the outer 22%
+      // Helper to draw beam path with two taper modes:
+      //  fadeAlpha=false → width tapers at ends (core line)
+      //  fadeAlpha=true  → alpha fades at ends, width stays full (glow layers)
+      const drawBeamPath = (lineG, fullWidth, color, alpha, fadeAlpha = false) => {
+        const fadeRatio = 0.30; // Outer 30% of each end fades
 
         for (let i = 0; i < steps; i++) {
           const t = (i + 0.5) / steps;
           let factor = 1.0;
           if (t < fadeRatio) {
-            factor = 0.25 + 0.75 * (t / fadeRatio); // Taper from 25% up to 100% width
+            factor = 0.15 + 0.85 * (t / fadeRatio);
           } else if (t > 1 - fadeRatio) {
-            factor = 0.25 + 0.75 * ((1 - t) / fadeRatio); // Taper from 100% down to 25% width
+            factor = 0.15 + 0.85 * ((1 - t) / fadeRatio);
           }
 
-          const w = Math.max(1, fullWidth * factor);
+          let w, a;
+          if (fadeAlpha) {
+            // Glow layers: keep width, fade alpha at ends so glow stays visible
+            w = fullWidth;
+            a = alpha * (0.25 + 0.75 * factor);
+          } else {
+            // Core lines: taper width at ends
+            w = Math.max(1, fullWidth * factor);
+            a = alpha;
+          }
 
           lineG.lineStyle({
             width: w,
             color,
-            alpha,
+            alpha: a,
             cap: PIXI.LINE_CAP.ROUND,
             join: PIXI.LINE_JOIN.ROUND,
           });
@@ -143,18 +148,17 @@ export class PaylineManager extends EventEmitter {
         }
       };
 
-      // ── Laser Beam Multi-Layer Glow (Matching Image) ───────────────
-      // Layer 1: Wide Outer Translucent Bloom
-      drawBeamPath(g, 28, baseColor, 0.12);
-      drawBeamPath(g, 20, baseColor, 0.25);
+      // ── Laser Beam Multi-Layer Glow ───────────────────────────────────
+      // Glow layers: alpha fades at ends (glow visible throughout)
+      drawBeamPath(g, 18, baseColor, 0.10, true);
+      drawBeamPath(g, 12, baseColor, 0.20, true);
+      drawBeamPath(g,  8, baseColor, 0.50, true);
+      drawBeamPath(g,  5, midColor,  0.80, true);
 
-      // Layer 2: Mid Glow Beam
-      drawBeamPath(g, 14, baseColor, 0.55);
-      drawBeamPath(g, 9,  midColor,  0.85);
+      // Core lines: width tapers at ends (sharp pointed ends)
+      drawBeamPath(g,  2.5, coreColor, 1.0, false);
+      drawBeamPath(g,  1.5, 0xFFFFFF,  1.0, false);
 
-      // Layer 3: Inner Intense Pure White Core Line
-      drawBeamPath(g, 4,  coreColor, 1.0);
-      drawBeamPath(g, 2,  0xFFFFFF,  1.0);
 
       const ctr = new PIXI.Container();
       ctr.addChild(g);
@@ -197,7 +201,24 @@ export class PaylineManager extends EventEmitter {
         });
         winText.anchor.set(0.5);
         badgeContainer.addChild(winText);
-        badgeContainer.scale.set(1.0); // Static presentation without count-up / pop effects during one-by-one payline display
+        badgeContainer.scale.set(1.0);
+
+        // Smooth breathing scale pulse effect
+        const pulseStartTime = performance.now();
+        const pulseSpeed = 0.0065; // Slightly faster frequency (~1.0s cycle)
+        const pulseScaleAmp = 0.05; // 5% scale breathing oscillation
+
+        const animateBadgePulse = (now) => {
+          if (!badgeContainer || badgeContainer.destroyed || !ctr || ctr.destroyed) return;
+          const elapsed = now - pulseStartTime;
+          const sinVal = Math.sin(elapsed * pulseSpeed);
+
+          const currentScale = 1.0 + sinVal * pulseScaleAmp;
+          badgeContainer.scale.set(currentScale);
+
+          requestAnimationFrame(animateBadgePulse);
+        };
+        requestAnimationFrame(animateBadgePulse);
 
         ctr.addChild(badgeContainer);
       }
@@ -222,7 +243,7 @@ export class PaylineManager extends EventEmitter {
 
         maskG.clear();
         maskG.beginFill(0xFFFFFF);
-        maskG.drawRect(minX, 0, totalSpan * ease, GameConfig.HEIGHT * 2);
+        maskG.drawRect(minX, -200, totalSpan * ease, 1000);
         maskG.endFill();
 
         if (progress < 1) {
@@ -231,18 +252,90 @@ export class PaylineManager extends EventEmitter {
       };
       requestAnimationFrame(animateDraw);
 
+      // ── All-Together Mode: Blue Glow Bug particles along payline ──────────
+      if (isAllTogetherMode) {
+        const bugTex = getUITexture ? getUITexture('blue_glow_bug') : null;
+        if (bugTex && bugTex !== PIXI.Texture.WHITE) {
+          const PARTICLE_COUNT = 6;
+          const BASE_SPEED = 0.0014;
+
+          // Get position + tangent perpendicular at a given progress (0-1)
+          const getPathInfo = (progress) => {
+            const maxIdx = pts.length - 1;
+            const rawIdx = progress * maxIdx;
+            const idx = Math.min(Math.floor(rawIdx), maxIdx - 1);
+            const f = rawIdx - idx;
+            const pos = {
+              x: pts[idx].x + f * (pts[idx + 1].x - pts[idx].x),
+              y: pts[idx].y + f * (pts[idx + 1].y - pts[idx].y),
+            };
+            // Tangent direction (forward along path)
+            const dx = pts[idx + 1].x - pts[idx].x;
+            const dy = pts[idx + 1].y - pts[idx].y;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            // Perpendicular: rotate tangent 90°
+            return { pos, perpX: -dy / len, perpY: dx / len };
+          };
+
+          // Cluster all particles close together — start within a 15% window
+          const clusterBase = Math.random() * 0.85; // random cluster starting position
+          const bugSprites = Array.from({ length: PARTICLE_COUNT }, (_, k) => {
+            const spr = new PIXI.Sprite(bugTex);
+            spr.anchor.set(0.5);
+            spr.scale.set(0.30 + Math.random() * 0.15);
+            // Cluster: spread within 0–15% of path, not evenly across full path
+            spr._progress = (clusterBase + (k / PARTICLE_COUNT) * 0.15) % 1;
+            spr._speed = BASE_SPEED * (0.75 + Math.random() * 0.50);
+            // Each particle has a fixed random perpendicular offset (±10px)
+            spr._perpOffset = (Math.random() - 0.5) * 20;
+            // Slow sine drift phase for gentle weave
+            spr._driftPhase = Math.random() * Math.PI * 2;
+            spr._driftSpeed = 0.001 + Math.random() * 0.001;
+            const { pos, perpX, perpY } = getPathInfo(spr._progress);
+            spr.x = pos.x + perpX * spr._perpOffset;
+            spr.y = pos.y + perpY * spr._perpOffset;
+            ctr.addChild(spr);
+            return spr;
+          });
+
+          let lastBugTime = null;
+          const animateBugs = (now) => {
+            if (!ctr || ctr.destroyed) return;
+            const dt = lastBugTime !== null ? Math.min(now - lastBugTime, 50) : 16;
+            lastBugTime = now;
+            let anyActive = false;
+            bugSprites.forEach((spr) => {
+              if (!spr || spr.destroyed || spr._done) return;
+              spr._progress += spr._speed * dt;
+              if (spr._progress >= 1) {
+                spr._progress = 1;
+                spr._done = true;
+                spr.visible = false;
+                return;
+              }
+              anyActive = true;
+              spr._driftPhase += spr._driftSpeed * dt;
+              const dynamicPerp = spr._perpOffset + Math.sin(spr._driftPhase) * 5;
+              const { pos, perpX, perpY } = getPathInfo(spr._progress);
+              spr.x = pos.x + perpX * dynamicPerp;
+              spr.y = pos.y + perpY * dynamicPerp;
+              spr.alpha = 1.0;
+            });
+            if (anyActive) requestAnimationFrame(animateBugs);
+          };
+          requestAnimationFrame(animateBugs);
+        }
+      }
+
+
       this._overlay.addChild(ctr);
       this._activeHighlights.push(ctr);
     });
 
     // ── Phase 1: All-Together Mode → Single Big Badge with Count-Up in Middle of Grid ──
     if (isAllTogetherMode) {
-      const isPortrait = window.innerHeight > window.innerWidth;
-      const gridX = GameConfig.getGridX ? GameConfig.getGridX(isPortrait) : this._gridX;
-      const gridY = GameConfig.getGridY ? GameConfig.getGridY(isPortrait) : this._gridY;
-
-      const midX = gridX + (GameConfig.getReelX ? GameConfig.getReelX(1) : 1 * (S + G)) + S * 0.5;
-      const midY = gridY + yOff + 1 * S + S * 0.5;
+      const midX = (GameConfig.getReelX ? GameConfig.getReelX(1) : 1 * (S + G)) + S * 0.5;
+      const midY = yOff + 1 * S + S * 0.5;
 
       const bigBadgeContainer = new PIXI.Container();
       bigBadgeContainer.x = midX;
@@ -252,14 +345,14 @@ export class PaylineManager extends EventEmitter {
       if (badgeTex && badgeTex !== PIXI.Texture.WHITE) {
         const bigSprite = new PIXI.Sprite(badgeTex);
         bigSprite.anchor.set(0.5);
-        bigSprite.width = 185;
-        bigSprite.height = 58;
+        bigSprite.width = 240;
+        bigSprite.height = 76;
         bigBadgeContainer.addChild(bigSprite);
       } else {
         const bgG = new PIXI.Graphics();
         bgG.beginFill(0x000000, 0.85);
         bgG.lineStyle(3, 0xFFE500, 1.0);
-        bgG.drawRoundedRect(-90, -28, 180, 56, 12);
+        bgG.drawRoundedRect(-120, -38, 240, 76, 14);
         bgG.endFill();
         bigBadgeContainer.addChild(bgG);
       }
@@ -268,15 +361,15 @@ export class PaylineManager extends EventEmitter {
 
       const totalText = new PIXI.Text('0.00', {
         fontFamily: 'Outfit, Arial, sans-serif',
-        fontSize: 34,
+        fontSize: 44,
         fontWeight: 'bold',
         fontStyle: 'italic',
         fill: '#FFE500',
         stroke: '#000000',
-        strokeThickness: 4,
+        strokeThickness: 5,
         dropShadow: true,
         dropShadowColor: '#000000',
-        dropShadowBlur: 4,
+        dropShadowBlur: 5,
         dropShadowDistance: 2,
       });
       totalText.anchor.set(0.5);

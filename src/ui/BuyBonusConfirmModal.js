@@ -33,6 +33,12 @@ export class BuyBonusConfirmModal extends PIXI.Container {
       this._popupContainer.x = W / 2;
       this._popupContainer.y = H / 2;
     }
+    if (this._overlay) {
+      this._overlay.clear();
+      this._overlay.beginFill(0x000000, 0.75);
+      this._overlay.drawRect(-W * 3, -H * 3, W * 7, H * 7);
+      this._overlay.endFill();
+    }
   }
 
   show(cost) {
@@ -79,11 +85,16 @@ export class BuyBonusConfirmModal extends PIXI.Container {
     overlay.endFill();
     overlay.interactive = true;
     overlay.buttonMode = false;
-    overlay.on('pointerdown', (e) => {
+    const interceptNo = (e) => {
       e.stopPropagation();
       if (this._justOpened) return;
       this._handleNo();
-    });
+    };
+    overlay.on('pointerdown', interceptNo);
+    overlay.on('pointerup', (e) => e.stopPropagation());
+    overlay.on('click', (e) => e.stopPropagation());
+    overlay.on('tap', (e) => e.stopPropagation());
+    this._overlay = overlay;
     this.addChild(overlay);
 
     // ── 2. Popup Center Container ────────────────────────────────
@@ -343,9 +354,8 @@ export class BuyBonusConfirmModal extends PIXI.Container {
       });
     }
 
-    this._ticker = new PIXI.Ticker();
-    this._ticker.add(() => {
-      if (!this.visible) return;
+    this._bugsTickHandler = () => {
+      if (!this.visible || !this._blueBugs) return;
       this._blueBugs.forEach(b => {
         b.phase += b.speed;
         b.baseX += b.vx;
@@ -371,14 +381,14 @@ export class BuyBonusConfirmModal extends PIXI.Container {
           b.sprite.y = b.baseY;
         }
       });
-    });
-    this._ticker.start();
+    };
+    PIXI.Ticker.shared.add(this._bugsTickHandler);
   }
 
   destroy(options) {
-    if (this._ticker) {
-      this._ticker.destroy();
-      this._ticker = null;
+    if (this._bugsTickHandler) {
+      PIXI.Ticker.shared.remove(this._bugsTickHandler);
+      this._bugsTickHandler = null;
     }
     super.destroy(options);
   }

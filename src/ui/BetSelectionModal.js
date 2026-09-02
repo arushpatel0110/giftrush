@@ -40,6 +40,9 @@ export class BetSelectionModal extends PIXI.Container {
     if (currentBet !== undefined && currentBet > 0) {
       this._currentBet = currentBet;
     }
+    if (this._isPortrait && this.children.length === 0) {
+      this._buildUI();
+    }
     this.visible = true;
     this._updateGridTileStates();
     this._onShow?.();
@@ -59,6 +62,13 @@ export class BetSelectionModal extends PIXI.Container {
 
   updateLayout(isPortrait = false) {
     this._isPortrait = isPortrait;
+    if (!isPortrait) {
+      if (this.visible) {
+        this.hide();
+      }
+      this.removeChildren();
+      return;
+    }
     this.removeChildren();
     this._buildUI();
   }

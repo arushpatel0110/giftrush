@@ -165,7 +165,6 @@ export class AutoplayPanel extends PIXI.Container {
         this._sprite.width = 82;
         this._sprite.height = 82;
       } else {
-        this._sprite.scale.set(1.0);
         if (this._disabled) {
           this._sprite.texture = this._texDisabled || this._texNormal;
         } else if (this._active) {
@@ -177,6 +176,7 @@ export class AutoplayPanel extends PIXI.Container {
         } else {
           this._sprite.texture = this._texNormal;
         }
+        this._sprite.scale.set(1.0);
       }
 
       if (this._active && this._remaining > 0) {

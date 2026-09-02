@@ -77,10 +77,10 @@ export class UIManager {
 
     stage.sortableChildren = true;
 
-    // HUD Container for main screen overlay elements (Buy Bonus, 5 lines ribbon, top header) - zIndex 10
+    // HUD Container for main screen overlay elements (Buy Bonus, 5 lines ribbon, top header) - zIndex 60 (Above BonusGame at 50, Below all modals at 9990+)
     this.hudContainer = new PIXI.Container();
     this.hudContainer.sortableChildren = true;
-    this.hudContainer.zIndex = 10;
+    this.hudContainer.zIndex = 60;
     stage.addChild(this.hudContainer);
 
     // Bottom Bar Container for bottom HUD bar ONLY - zIndex 1000 (Above all modals)
@@ -109,7 +109,7 @@ export class UIManager {
       onSwitchTab: modalNav.onSwitchTab,
       onSoundToggle: modalNav.onSoundToggle,
     });
-    this._settingsModal.zIndex = 300;
+    this._settingsModal.zIndex = 9999;
     stage.addChild(this._settingsModal);
 
     this._paytableModal = new PaytableModal({
@@ -120,7 +120,7 @@ export class UIManager {
       onSwitchTab: modalNav.onSwitchTab,
       onSoundToggle: modalNav.onSoundToggle,
     });
-    this._paytableModal.zIndex = 100;
+    this._paytableModal.zIndex = 10000;
     stage.addChild(this._paytableModal);
 
     this._historyModal = new HistoryModal({
@@ -130,7 +130,7 @@ export class UIManager {
       onSwitchTab: modalNav.onSwitchTab,
       onSoundToggle: modalNav.onSoundToggle,
     });
-    this._historyModal.zIndex = 100;
+    this._historyModal.zIndex = 10000;
     stage.addChild(this._historyModal);
 
     this._rulesModal = new RulesModal({
@@ -140,7 +140,7 @@ export class UIManager {
       onSwitchTab: modalNav.onSwitchTab,
       onSoundToggle: modalNav.onSoundToggle,
     });
-    this._rulesModal.zIndex = 100;
+    this._rulesModal.zIndex = 10000;
     stage.addChild(this._rulesModal);
 
     this._miniPaytableModal = new MiniPaytableModal({
@@ -149,7 +149,7 @@ export class UIManager {
       onShow: () => this.setPaytableActive(true),
       onClose: () => this.setPaytableActive(false),
     });
-    this._miniPaytableModal.zIndex = 400;
+    this._miniPaytableModal.zIndex = 9995;
     stage.addChild(this._miniPaytableModal);
 
     this._buyBonusConfirmModal = new BuyBonusConfirmModal({
@@ -166,7 +166,7 @@ export class UIManager {
       onShow: () => { },
       onClose: () => { },
     });
-    this._buyBonusConfirmModal.zIndex = 400;
+    this._buyBonusConfirmModal.zIndex = 9990;
     stage.addChild(this._buyBonusConfirmModal);
 
     this._autoplaySettingsModal = new AutoplaySettingsModal({
@@ -183,7 +183,7 @@ export class UIManager {
       onSwitchTab: modalNav.onSwitchTab,
       onSoundToggle: modalNav.onSoundToggle,
     });
-    this._autoplaySettingsModal.zIndex = 350;
+    this._autoplaySettingsModal.zIndex = 9995;
     stage.addChild(this._autoplaySettingsModal);
 
     this._betSelectionModal = new BetSelectionModal({
@@ -200,14 +200,14 @@ export class UIManager {
       onSwitchTab: modalNav.onSwitchTab,
       onSoundToggle: modalNav.onSoundToggle,
     });
-    this._betSelectionModal.zIndex = 350;
+    this._betSelectionModal.zIndex = 9998;
     stage.addChild(this._betSelectionModal);
 
     this._bonusIntroModal = new BonusIntroModal({
       getSpineData: this._callbacks.getSpineData,
       getTexture: this._callbacks.getUITexture,
     });
-    this._bonusIntroModal.zIndex = 500;
+    this._bonusIntroModal.zIndex = 9995;
     stage.addChild(this._bonusIntroModal);
 
     this._createMessageToast(stage);
@@ -293,7 +293,41 @@ export class UIManager {
     }
   }
   setBonusActive(active) {
+    this._bonusActive = active;
     this._buyBonusBtn?.setBonusActive(active);
+    if (this._buyBonusBtn) {
+      this._buyBonusBtn.visible = !active;
+    }
+    if (this._fiveLinesRibbon) {
+      this._fiveLinesRibbon.visible = !active;
+    }
+    if (this._topPaytableHeader) {
+      this._topPaytableHeader.visible = !active && this._isPortrait;
+    }
+
+    if (this.bottomBarContainer) {
+      this.bottomBarContainer.interactiveChildren = !active;
+      this.bottomBarContainer.eventMode = active ? 'none' : 'auto';
+      this.bottomBarContainer.interactive = !active;
+    }
+    if (this._spinBtn) {
+      this._spinBtn.eventMode = active ? 'none' : 'auto';
+      this._spinBtn.interactive = !active;
+    }
+    if (this._betPanel) {
+      this._betPanel.setEnabled(!active);
+    }
+    if (this._autoPanel) {
+      this._autoPanel.setEnabled(!active);
+    }
+    if (this._settingsBtn) {
+      this._settingsBtn.eventMode = active ? 'none' : 'auto';
+      this._settingsBtn.interactive = !active;
+    }
+    if (this._infoBtn) {
+      this._infoBtn.eventMode = active ? 'none' : 'auto';
+      this._infoBtn.interactive = !active;
+    }
   }
 
   setAutoplayActive(active, count = 0) {
@@ -308,12 +342,22 @@ export class UIManager {
     this._autoPanel?.decrementSpins();
   }
 
-  setBottomBarVisible(visible) {
-    if (this.bottomBarContainer) {
-      this.bottomBarContainer.visible = visible;
-    }
+  setHUDVisible(visible) {
     if (this.hudContainer) {
       this.hudContainer.visible = visible;
+    }
+    if (this._bonusActive && this._topPaytableHeader) {
+      this._topPaytableHeader.visible = false;
+    }
+  }
+
+  setBottomBarVisible(visible) {
+    if (this.bottomBarContainer) {
+      if (this._bonusActive && this._isPortrait) {
+        this.bottomBarContainer.visible = false;
+      } else {
+        this.bottomBarContainer.visible = visible;
+      }
     }
   }
 
@@ -330,15 +374,22 @@ export class UIManager {
     );
   }
 
+  isFullModalOpen() {
+    return !!(
+      this._paytableModal?.visible ||
+      this._rulesModal?.visible ||
+      this._historyModal?.visible ||
+      this._buyBonusConfirmModal?.visible
+    );
+  }
+
   setPaytableActive(active) {
     if (!active && this.isAnyModalOpen()) {
       return;
     }
+    this._isModalOpen = active;
 
     if (this._isPortrait) {
-      // Track modal open state so the periodic prompt timer won't fire
-      this._isModalOpen = active;
-
       // In portrait: change bottom strip color to grey (0x202020) when a popup is open, or black (0x000000) when closed
       if (this._bottomStripSprite) this._bottomStripSprite.visible = false;
       if (this._bottomStripGraphics) {
@@ -357,21 +408,51 @@ export class UIManager {
         if (this._betPanel._lbl) this._betPanel._lbl.visible = !active;
         if (this._betPanel._betText) this._betPanel._betText.visible = !active;
       }
-      // Also hide "Hold spin for quick spins" and Total Win when popup is open
-      if (this._quickSpinPromptText) this._quickSpinPromptText.visible = !active;
-      if (this._totalWinContainer) this._totalWinContainer.visible = !active;
-      if (this._linePaysText) this._linePaysText.visible = !active;
+      // Properly gate win container, line pays, and quick spin prompt text visibility
+      if (active) {
+        if (this._quickSpinPromptText) this._quickSpinPromptText.visible = false;
+        if (this._totalWinContainer) this._totalWinContainer.visible = false;
+        if (this._linePaysText) this._linePaysText.visible = false;
+      } else {
+        if (this._isWinActive) {
+          const hasLinePays = !!(this._linePaysText && this._linePaysText.text);
+          if (this._totalWinContainer) {
+            this._totalWinContainer.x = (this._isPortrait && hasLinePays) ? 490 : (this._isPortrait ? 360 : 730);
+            this._totalWinContainer.visible = true;
+          }
+          if (this._linePaysText && this._linePaysText.text) this._linePaysText.visible = true;
+          if (this._quickSpinPromptText) this._quickSpinPromptText.visible = false;
+        } else {
+          if (this._totalWinContainer) this._totalWinContainer.visible = false;
+          if (this._linePaysText) this._linePaysText.visible = false;
+          if (this._quickSpinPromptText) this._quickSpinPromptText.visible = false;
+        }
+      }
       if (this._spinBtn) this._spinBtn.setModalOpenState?.(active);
       return;
     }
-    // ── Landscape: unchanged ────────────────────────────────────
-    if (active) {
-      if (this._bottomStripSprite) this._bottomStripSprite.visible = false;
-      if (this._bottomStripGraphics) this._bottomStripGraphics.visible = true;
-    } else {
-      if (this._bottomStripSprite) this._bottomStripSprite.visible = true;
-      if (this._bottomStripGraphics) this._bottomStripGraphics.visible = false;
+
+    // ── Landscape ──────────────────────────────────────────────
+    const showGreyStrip = this.isFullModalOpen();
+
+    if (this._bottomStripGraphics) {
+      this._bottomStripGraphics.clear();
+      this._bottomStripGraphics.beginFill(0x1A1A1A, 1.0);
+      this._bottomStripGraphics.drawRect(-1500, 655, 4000, 65);
+      this._bottomStripGraphics.endFill();
+      this._bottomStripGraphics.visible = showGreyStrip;
     }
+    if (this._bottomStripSprite) {
+      this._bottomStripSprite.visible = !showGreyStrip;
+    }
+    if (this._balanceDisplay) {
+      this._balanceDisplay.visible = true;
+    }
+    if (this._betPanel) {
+      if (this._betPanel._lbl) this._betPanel._lbl.visible = true;
+      if (this._betPanel._betText) this._betPanel._betText.visible = true;
+    }
+    if (this._spinBtn) this._spinBtn.setModalOpenState?.(active);
   }
 
   setBalance(v) {
@@ -396,6 +477,141 @@ export class UIManager {
     if (this._linePaysText) this._linePaysText.visible = false;
     if (this._totalWinContainer) this._totalWinContainer.visible = false;
     if (this._quickSpinPromptText) this._quickSpinPromptText.visible = false;
+    this._stopHeaderPulse();
+  }
+
+  updateTopHeaderWinHighlights(winningSymbolIds = []) {
+    if (!this._topHeaderCategories || !this._isPortrait) return;
+
+    const hasWins = Array.isArray(winningSymbolIds) && winningSymbolIds.length > 0;
+
+    this._topHeaderCategories.forEach((cat) => {
+      if (cat.key === 'low') {
+        const lowWon = hasWins && cat.ids.some(id => winningSymbolIds.includes(id));
+        cat.isWinner = lowWon;
+
+        // Granular check for each of the 4 low-tier symbols
+        cat.ids.forEach((id) => {
+          const spr = this._lowSymbolSprites?.[id];
+          if (!spr) return;
+          const isThisLowWon = hasWins && winningSymbolIds.includes(id);
+          spr.isWinner = isThisLowWon;
+
+          const base = spr._baseScale ?? spr.scale.x;
+          if (!hasWins) {
+            spr.alpha = 1.0;
+            spr.scale.set(base);
+          } else if (isThisLowWon) {
+            spr.alpha = 1.0;
+          } else {
+            spr.alpha = 0.35; // Dim specific low symbol if it didn't win
+            spr.scale.set(base);
+          }
+        });
+
+        // Low group text ("3: X FUN")
+        if (this._txtLowGroup) {
+          this._txtLowGroup.alpha = (!hasWins || lowWon) ? 1.0 : 0.35;
+        }
+
+      } else {
+        const isWinner = hasWins && cat.ids.some(id => winningSymbolIds.includes(id));
+        cat.isWinner = isWinner;
+
+        if (!hasWins) {
+          cat.container.alpha = 1.0;
+          cat.container.scale.set(1.0);
+        } else if (isWinner) {
+          cat.container.alpha = 1.0;
+        } else {
+          cat.container.alpha = 0.35; // Dim non-winning category
+          cat.container.scale.set(1.0);
+        }
+      }
+    });
+
+    if (hasWins) {
+      if (!this._headerPulseAnimId) {
+        this._startHeaderPulse();
+      }
+    } else {
+      this._stopHeaderPulse();
+    }
+  }
+
+  _startHeaderPulse() {
+    this._stopHeaderPulse();
+    const startTime = performance.now();
+    const pulseSpeed = 0.0065;
+    const pulseScaleAmp = 0.08;
+
+    const animatePulse = (now) => {
+      if (!this._topHeaderCategories) return;
+      const elapsed = now - startTime;
+      const sinVal = Math.sin(elapsed * pulseSpeed);
+      const currentScale = 1.0 + sinVal * pulseScaleAmp;
+
+      this._topHeaderCategories.forEach((cat) => {
+        if (cat.key === 'low') {
+          if (this._txtLowGroup) {
+            if (cat.isWinner) {
+              this._txtLowGroup.scale.set(currentScale);
+            } else {
+              this._txtLowGroup.scale.set(1.0);
+            }
+          }
+          cat.ids.forEach((id) => {
+            const spr = this._lowSymbolSprites?.[id];
+            if (spr) {
+              const base = spr._baseScale ?? spr.scale.x;
+              if (spr.isWinner) {
+                spr.scale.set(base * currentScale);
+              } else {
+                spr.scale.set(base);
+              }
+            }
+          });
+        } else {
+          if (cat.isWinner) {
+            cat.container.scale.set(currentScale);
+          } else {
+            cat.container.scale.set(1.0);
+          }
+        }
+      });
+
+      this._headerPulseAnimId = requestAnimationFrame(animatePulse);
+    };
+
+    this._headerPulseAnimId = requestAnimationFrame(animatePulse);
+  }
+
+  _stopHeaderPulse() {
+    if (this._headerPulseAnimId) {
+      cancelAnimationFrame(this._headerPulseAnimId);
+      this._headerPulseAnimId = null;
+    }
+    if (this._topHeaderCategories) {
+      this._topHeaderCategories.forEach((cat) => {
+        cat.isWinner = false;
+        cat.container.alpha = 1.0;
+        cat.container.scale.set(1.0);
+        if (cat.key === 'low') {
+          cat.ids.forEach((id) => {
+            const spr = this._lowSymbolSprites?.[id];
+            if (spr) {
+              spr.isWinner = false;
+              spr.alpha = 1.0;
+              spr.scale.set(spr._baseScale ?? spr.scale.x);
+            }
+          });
+          if (this._txtLowGroup) {
+            this._txtLowGroup.alpha = 1.0;
+            this._txtLowGroup.scale.set(1.0);
+          }
+        }
+      });
+    }
   }
 
   showWinAmount(amount) {
@@ -421,10 +637,13 @@ export class UIManager {
       if (this._totalWinContainer) this._totalWinContainer.visible = false;
       if (this._linePaysText) this._linePaysText.visible = false;
       if (this._quickSpinPromptText) this._quickSpinPromptText.visible = false;
+      this._stopHeaderPulse();
     }
   }
 
-  updateWinPresentationDisplay(isAllTogether, paylineId, totalWin = 0) {
+  updateWinPresentationDisplay(isAllTogether, paylineId, totalWin = 0, winningSymbolIds = []) {
+    this.updateTopHeaderWinHighlights(winningSymbolIds);
+
     const winAmt = totalWin || this._currentTotalWinAmount || 0;
     if (winAmt <= 0) return;
 
@@ -452,19 +671,20 @@ export class UIManager {
         if (this._linePaysText) this._linePaysText.visible = false;
         if (this._totalWinContainer) {
           this._totalWinContainer.x = 360;
-          this._totalWinContainer.y = BY - 90;
+          this._totalWinContainer.y = BY - 88;
         }
       } else {
         if (this._linePaysText) {
           this._linePaysText.text = `Line ${paylineId} pays`;
           this._linePaysText.anchor.set(0.5, 0.5);
-          this._linePaysText.x = 360;
-          this._linePaysText.y = BY - 115;
+          this._linePaysText.style.fontSize = 20;
+          this._linePaysText.x = 230;
+          this._linePaysText.y = BY - 65;
           this._linePaysText.visible = true;
         }
         if (this._totalWinContainer) {
-          this._totalWinContainer.x = 360;
-          this._totalWinContainer.y = BY - 75;
+          this._totalWinContainer.x = 490;
+          this._totalWinContainer.y = BY - 88;
         }
       }
     } else {
@@ -603,15 +823,17 @@ export class UIManager {
     this._bonusIntroModal?.updateLayout?.(isPortrait);
     this._buyBonusBtn?.updateLayout?.(isPortrait);
 
+    this._isModalOpen = this.isAnyModalOpen();
+
     if (isPortrait) {
       // ── Portrait Layout (720 x 1280 canvas) ─────────────────────
       if (this._topPaytableHeader) this._topPaytableHeader.visible = true;
       this._updateTopPaytableText(this._currentBet || 0.10);
 
       if (this._brandLogo) { this._brandLogo.x = 24; this._brandLogo.y = 24; }
-      if (this._muteBtn) { this._muteBtn.x = 590; this._muteBtn.y = 28; }
-      if (this._timeText) { this._timeText.x = 660; this._timeText.y = 28; }
-      if (this._rBanner) { this._rBanner.x = 712; this._rBanner.y = 50; }
+      if (this._muteBtn) { this._muteBtn.x = 600; this._muteBtn.y = 28; }
+      if (this._timeText) { this._timeText.x = 680; this._timeText.y = 28; }
+      if (this._rBanner) { this._rBanner.visible = false; }
       if (this._buyBonusBtn) { this._buyBonusBtn.x = 210; this._buyBonusBtn.y = 800; }
       if (this._fiveLinesRibbon) { this._fiveLinesRibbon.x = 685; this._fiveLinesRibbon.y = 549; }
 
@@ -637,26 +859,31 @@ export class UIManager {
       this._upperPortraitStrip.endFill();
       this._upperPortraitStrip.visible = !this._isModalOpen;
 
+      if (this._linePaysText) {
+        this._linePaysText.style.fontSize = 20;
+        this._linePaysText.anchor.set(0.5, 0.5);
+        this._linePaysText.x = 230; this._linePaysText.y = BY - 65;
+        this._linePaysText.visible = !this._isModalOpen && !!this._isWinActive && !!(this._linePaysText.text && this._linePaysText.text.length > 0);
+      }
       if (this._totalWinContainer) {
-        this._totalWinContainer.x = 360; this._totalWinContainer.y = BY - 90;
+        const hasLinePays = !!(this._linePaysText && this._linePaysText.visible);
+        this._totalWinContainer.x = hasLinePays ? 490 : 360;
+        this._totalWinContainer.y = BY - 88;
         if (this._totalWinLabelText) this._totalWinLabelText.style.fontSize = 18;
         if (this._totalWinAmountText) this._totalWinAmountText.style.fontSize = 28;
-        if (this._isModalOpen) this._totalWinContainer.visible = false;
+        this._totalWinContainer.visible = !this._isModalOpen && !!this._isWinActive;
       }
       if (this._balanceDisplay) {
         this._balanceDisplay.x = 60; this._balanceDisplay.y = BY + 100;
         this._balanceDisplay.updateLayout?.(true);
         this._balanceDisplay.visible = !this._isModalOpen;
       }
-      if (this._linePaysText) {
-        this._linePaysText.style.fontSize = 22;
-        this._linePaysText.x = 360; this._linePaysText.y = BY - 60;
-        if (this._isModalOpen) this._linePaysText.visible = false;
-      }
       if (this._quickSpinPromptText) {
         this._quickSpinPromptText.style.fontSize = 22;
-        this._quickSpinPromptText.x = 360; this._quickSpinPromptText.y = BY - 60;
-        if (this._isModalOpen) this._quickSpinPromptText.visible = false;
+        this._quickSpinPromptText.x = 360; this._quickSpinPromptText.y = BY - 65;
+        if (this._isModalOpen || this._isWinActive) {
+          this._quickSpinPromptText.visible = false;
+        }
       }
 
       if (this._settingsBtn) { this._settingsBtn.x = 75; this._settingsBtn.y = BY + 100; this._settingsBtn.updateLayout?.(true); }
@@ -675,33 +902,56 @@ export class UIManager {
       if (this._topPaytableHeader) this._topPaytableHeader.visible = false;
       // ── Landscape Layout (1280 x 720 canvas) - EXACT LANDSCAPE UNCHANGED ──
       if (this._brandLogo) { this._brandLogo.x = 24; this._brandLogo.y = 24; }
-      if (this._muteBtn) { this._muteBtn.x = W - 110; this._muteBtn.y = 24; }
-      if (this._timeText) { this._timeText.x = W - 40; this._timeText.y = 24; }
-      if (this._rBanner) { this._rBanner.x = W - 6; this._rBanner.y = 45; }
+      if (this._muteBtn) { this._muteBtn.x = W - 115; this._muteBtn.y = 24; }
+      if (this._timeText) { this._timeText.x = W - 45; this._timeText.y = 24; }
+      if (this._rBanner) { this._rBanner.visible = true; this._rBanner.x = W - 6; this._rBanner.y = 45; }
       if (this._buyBonusBtn) { this._buyBonusBtn.x = 105; this._buyBonusBtn.y = 380; }
-      if (this._fiveLinesRibbon) { this._fiveLinesRibbon.x = 965; this._fiveLinesRibbon.y = 344; }
+      if (this._fiveLinesRibbon) { this._fiveLinesRibbon.x = 1020; this._fiveLinesRibbon.y = 344; }
+
+      const showGreyStrip = this.isFullModalOpen();
 
       if (this._bottomStripGraphics) {
         this._bottomStripGraphics.clear();
         this._bottomStripGraphics.beginFill(0x1A1A1A, 1.0);
         this._bottomStripGraphics.drawRect(-1500, BY, 4000, BH);
         this._bottomStripGraphics.endFill();
+        this._bottomStripGraphics.visible = showGreyStrip;
       }
       if (this._bottomStripSprite) {
         this._bottomStripSprite.y = BY;
         this._bottomStripSprite.height = BH;
+        this._bottomStripSprite.visible = !showGreyStrip;
       }
       if (this._infoBtn) { this._infoBtn.x = 95; this._infoBtn.y = BY + 20; this._infoBtn.updateLayout?.(false); }
       if (this._settingsBtn) { this._settingsBtn.x = 122; this._settingsBtn.y = BY + 20; this._settingsBtn.updateLayout?.(false); }
-      if (this._balanceDisplay) { this._balanceDisplay.x = 85; this._balanceDisplay.y = BY + 46; this._balanceDisplay.updateLayout?.(false); }
-      if (this._betPanel) { this._betPanel.x = 250; this._betPanel.y = BY + 10; this._betPanel.updateLayout?.(false); }
-      if (this._totalWinLabelText) this._totalWinLabelText.style.fontSize = 13;
-      if (this._totalWinAmountText) this._totalWinAmountText.style.fontSize = 22;
-      if (this._linePaysText) { this._linePaysText.style.fontSize = 16; this._linePaysText.x = 510; this._linePaysText.y = BY + 32; }
+      if (this._balanceDisplay) {
+        this._balanceDisplay.x = 85; this._balanceDisplay.y = BY + 46;
+        this._balanceDisplay.updateLayout?.(false);
+        this._balanceDisplay.visible = true;
+      }
+      if (this._betPanel) {
+        this._betPanel.x = 250; this._betPanel.y = BY + 10;
+        this._betPanel.updateLayout?.(false);
+        if (this._betPanel._lbl) this._betPanel._lbl.visible = true;
+        if (this._betPanel._betText) this._betPanel._betText.visible = true;
+      }
+      if (this._totalWinLabelText) this._totalWinLabelText.style.fontSize = 17;
+      if (this._totalWinAmountText) this._totalWinAmountText.style.fontSize = 28;
+      if (this._linePaysText) { this._linePaysText.style.fontSize = 20; this._linePaysText.x = 510; this._linePaysText.y = BY + 32; }
       if (this._totalWinContainer) { this._totalWinContainer.x = (this._linePaysText?.visible ? 730 : 650); this._totalWinContainer.y = BY + 12; }
       if (this._autoPanel) { this._autoPanel.x = 1010; this._autoPanel.y = BY + 32; this._autoPanel.updateLayout?.(false); }
-      if (this._quickSpinPromptText) { this._quickSpinPromptText.style.fontSize = 13; this._quickSpinPromptText.x = 650; this._quickSpinPromptText.y = BY + 32; }
-      if (this._spinBtn) { this._spinBtn.x = 1075; this._spinBtn.y = BY + 32; this._spinBtn.updateLayout?.(false); }
+      if (this._quickSpinPromptText) { this._quickSpinPromptText.style.fontSize = 18; this._quickSpinPromptText.x = 650; this._quickSpinPromptText.y = BY + 32; }
+      if (this._spinBtn) { this._spinBtn.x = 1075; this._spinBtn.y = BY + 32; this._spinBtn.updateLayout?.(false, this._isModalOpen); }
+    }
+
+    if (this._bonusActive) {
+      if (this.hudContainer) this.hudContainer.visible = true;
+      if (this._topPaytableHeader) this._topPaytableHeader.visible = false;
+      if (this._buyBonusBtn) this._buyBonusBtn.visible = false;
+      if (this._fiveLinesRibbon) this._fiveLinesRibbon.visible = false;
+      if (this.bottomBarContainer) {
+        this.bottomBarContainer.visible = !isPortrait;
+      }
     }
   }
 
@@ -731,7 +981,14 @@ export class UIManager {
     };
 
     this._timeText = new PIXI.Text(formatTime(), {
-      fontFamily: 'Outfit, sans-serif', fontSize: 12, fill: 0xFFFFFF, fontWeight: '600',
+      fontFamily: 'Outfit, sans-serif',
+      fontSize: 18,
+      fill: 0xFFFFFF,
+      fontWeight: 'bold',
+      dropShadow: true,
+      dropShadowColor: 0x000000,
+      dropShadowBlur: 2,
+      dropShadowDistance: 1,
     });
     this._timeText.anchor.set(0.5); this._timeText.x = W - 40; this._timeText.y = 24;
     this.hudContainer.addChild(this._timeText);
@@ -771,9 +1028,9 @@ export class UIManager {
 
     const textStyle = {
       fontFamily: 'Outfit, Arial, sans-serif',
-      fontSize: 18,
+      fontSize: 21,
       fontWeight: 'bold',
-      fill: '#FFCC00',
+      fill: '#FF7A00',
       stroke: '#000000',
       strokeThickness: 3.5,
       dropShadow: true,
@@ -792,6 +1049,7 @@ export class UIManager {
         if (t && t.width > 0 && t.height > 0) {
           const s = Math.min(maxW / t.width, maxH / t.height);
           sprite.scale.set(s);
+          sprite._baseScale = s; // store so pulse code can scale relative to this
         }
       };
 
@@ -816,7 +1074,7 @@ export class UIManager {
     // ── Row 1, Col 1: Seven ──────────────────────────────
     const c1 = new PIXI.Container();
     c1.x = 180; c1.y = 90;
-    const s7 = createSymbolSprite(SYMBOL_IDS.SEVEN, 68, 68);
+    const s7 = createSymbolSprite(SYMBOL_IDS.SEVEN, 80, 80);
     s7.y = 0;
     c1.addChild(s7);
     this._txtSeven = new PIXI.Text('', textStyle);
@@ -828,7 +1086,7 @@ export class UIManager {
     // ── Row 1, Col 2: Bonus Elf ──────────────────────────
     const c2 = new PIXI.Container();
     c2.x = 360; c2.y = 90;
-    const sB = createSymbolSprite(SYMBOL_IDS.BONUS, 68, 68);
+    const sB = createSymbolSprite(SYMBOL_IDS.BONUS, 80, 80);
     sB.y = 0;
     c2.addChild(sB);
     const txtBonus = new PIXI.Text('BONUS', textStyle);
@@ -840,7 +1098,7 @@ export class UIManager {
     // ── Row 1, Col 3: Star ───────────────────────────────
     const c3 = new PIXI.Container();
     c3.x = 540; c3.y = 90;
-    const sStar = createSymbolSprite(SYMBOL_IDS.STAR, 68, 68);
+    const sStar = createSymbolSprite(SYMBOL_IDS.STAR, 80, 80);
     sStar.y = 0;
     c3.addChild(sStar);
     this._txtStar = new PIXI.Text('', textStyle);
@@ -852,7 +1110,7 @@ export class UIManager {
     // ── Row 2, Col 1: Bell ───────────────────────────────
     const c4 = new PIXI.Container();
     c4.x = 180; c4.y = 195;
-    const sBell = createSymbolSprite(SYMBOL_IDS.BELL, 68, 68);
+    const sBell = createSymbolSprite(SYMBOL_IDS.BELL, 80, 80);
     sBell.y = 0;
     c4.addChild(sBell);
     this._txtBell = new PIXI.Text('', textStyle);
@@ -861,25 +1119,30 @@ export class UIManager {
     c4.addChild(this._txtBell);
     this._topPaytableHeader.addChild(c4);
 
-    // ── Row 2, Col 2: 4 Low Symbols Cluster (Gingerbread, Hat, Ornament, Candy Cane) ──
+    // ── Row 2, Col 2: 4 Low Symbols Cluster in 1 Row with slight overlap ──
     const c5 = new PIXI.Container();
     c5.x = 360; c5.y = 195;
 
     const lowCluster = new PIXI.Container();
-    lowCluster.y = 0;
+    lowCluster.y = -2;
+    lowCluster.sortableChildren = true;
 
     const lowIds = [
-      { id: SYMBOL_IDS.GINGERBREAD, dx: -18, dy: -18 },
-      { id: SYMBOL_IDS.SANTA_HAT, dx: 18, dy: -18 },
-      { id: SYMBOL_IDS.ORNAMENT, dx: -18, dy: 18 },
-      { id: SYMBOL_IDS.CANDY_CANE, dx: 18, dy: 18 },
+      { id: SYMBOL_IDS.CANDY_CANE, dx: -36 },
+      { id: SYMBOL_IDS.GINGERBREAD, dx: -12 },
+      { id: SYMBOL_IDS.ORNAMENT, dx: 12 },
+      { id: SYMBOL_IDS.SANTA_HAT, dx: 36 },
     ];
 
-    lowIds.forEach((item) => {
-      const spr = createSymbolSprite(item.id, 35, 35);
+    this._lowSymbolSprites = {};
+
+    lowIds.forEach((item, index) => {
+      const spr = createSymbolSprite(item.id, 48, 48);
       spr.x = item.dx;
-      spr.y = item.dy;
+      spr.y = 0;
+      spr.zIndex = index;
       lowCluster.addChild(spr);
+      this._lowSymbolSprites[item.id] = spr;
     });
     c5.addChild(lowCluster);
 
@@ -892,7 +1155,7 @@ export class UIManager {
     // ── Row 2, Col 3: Mitten / Glove ─────────────────────
     const c6 = new PIXI.Container();
     c6.x = 540; c6.y = 195;
-    const sMit = createSymbolSprite(SYMBOL_IDS.MITTEN, 68, 68);
+    const sMit = createSymbolSprite(SYMBOL_IDS.MITTEN, 80, 80);
     sMit.y = 0;
     c6.addChild(sMit);
     this._txtMitten = new PIXI.Text('', textStyle);
@@ -900,6 +1163,16 @@ export class UIManager {
     this._txtMitten.y = 48;
     c6.addChild(this._txtMitten);
     this._topPaytableHeader.addChild(c6);
+
+    // Register top header categories for interactive win pulsing & dimming
+    this._topHeaderCategories = [
+      { key: 'seven', ids: [SYMBOL_IDS.SEVEN], container: c1 },
+      { key: 'bonus', ids: [SYMBOL_IDS.BONUS], container: c2 },
+      { key: 'star', ids: [SYMBOL_IDS.STAR], container: c3 },
+      { key: 'bell', ids: [SYMBOL_IDS.BELL], container: c4 },
+      { key: 'low', ids: [SYMBOL_IDS.CANDY_CANE, SYMBOL_IDS.GINGERBREAD, SYMBOL_IDS.ORNAMENT, SYMBOL_IDS.SANTA_HAT], container: c5 },
+      { key: 'mitten', ids: [SYMBOL_IDS.MITTEN], container: c6 },
+    ];
 
     this._updateTopPaytableText(this._currentBet || 0.10);
   }
@@ -953,7 +1226,7 @@ export class UIManager {
     });
     this._fiveLinesRibbon.rotation = 0;
     this._fiveLinesRibbon.anchor.set(0.5, 0.5);
-    this._fiveLinesRibbon.x = 965;
+    this._fiveLinesRibbon.x = 1030;
     this._fiveLinesRibbon.y = 344;
 
     this.hudContainer.addChild(this._fiveLinesRibbon);
@@ -1047,13 +1320,9 @@ export class UIManager {
     // ── Bottom Bar Win Presentation Area (Matching Reference Image) ──
     this._linePaysText = new PIXI.Text('', {
       fontFamily: 'Outfit, Arial, sans-serif',
-      fontSize: 16,
+      fontSize: 20,
       fill: '#FFFFFF',
-      fontWeight: '600',
-      dropShadow: true,
-      dropShadowColor: '#000000',
-      dropShadowBlur: 2,
-      dropShadowDistance: 1,
+      fontWeight: '200',
     });
     this._linePaysText.anchor.set(0, 0.5);
     this._linePaysText.x = 510;
@@ -1068,9 +1337,9 @@ export class UIManager {
 
     this._totalWinLabelText = new PIXI.Text('Total win:', {
       fontFamily: 'Outfit, Arial, sans-serif',
-      fontSize: 13,
+      fontSize: 17,
       fill: '#FFFFFF',
-      fontWeight: '400',
+      fontWeight: '200',
     });
     this._totalWinLabelText.anchor.set(0.5, 0);
     this._totalWinLabelText.x = 0;
@@ -1079,17 +1348,13 @@ export class UIManager {
 
     this._totalWinAmountText = new PIXI.Text('0.00 FUN', {
       fontFamily: 'Outfit, Arial, sans-serif',
-      fontSize: 22,
+      fontSize: 28,
       fill: '#FFFFFF',
-      fontWeight: 'bold',
-      dropShadow: true,
-      dropShadowColor: '#000000',
-      dropShadowBlur: 3,
-      dropShadowDistance: 1,
+      fontWeight: '300',
     });
     this._totalWinAmountText.anchor.set(0.5, 0);
     this._totalWinAmountText.x = 0;
-    this._totalWinAmountText.y = 16;
+    this._totalWinAmountText.y = 18;
     this._totalWinContainer.addChild(this._totalWinAmountText);
 
     this.bottomBarContainer.addChild(this._totalWinContainer);
@@ -1111,7 +1376,7 @@ export class UIManager {
     // Simple white prompt text centered on bottom strip ("Hold spin for quick spins")
     this._quickSpinPromptText = new PIXI.Text('Hold spin for quick spins', {
       fontFamily: 'Outfit, Arial, sans-serif',
-      fontSize: 13,
+      fontSize: 18,
       fill: '#FFFFFF',
       fontWeight: '400',
       dropShadow: true,
@@ -1131,7 +1396,6 @@ export class UIManager {
     const triggerPrompt = () => {
       if (this._isWinActive) return;
       if (this._isModalOpen) return;                                         // never show during a popup
-      if (this._isPortrait) return;                                          // never show in portrait mode
       if (this._totalWinContainer && this._totalWinContainer.visible) return;
       if (this._linePaysText && this._linePaysText.visible) return;
       if (!this._quickSpinPromptText || this._quickSpinPromptText.destroyed) return;

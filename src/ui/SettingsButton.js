@@ -88,7 +88,6 @@ export class SettingsButton extends PIXI.Container {
         this._sprite.width = 82;
         this._sprite.height = 82;
       } else {
-        this._sprite.scale.set(1.0);
         if (this._disabled) {
           this._sprite.texture = this._texNormal;
         } else if (this._isPressed && this._texClick) {
@@ -98,6 +97,7 @@ export class SettingsButton extends PIXI.Container {
         } else {
           this._sprite.texture = this._texNormal;
         }
+        this._sprite.scale.set(1.0);
       }
     }
   }

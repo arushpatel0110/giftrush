@@ -1,0 +1,181 @@
+	================================================================================
+           GIFT RUSH SLOT GAME - ADMIN PANEL SERVER & API SPECIFICATION
+================================================================================
+
+1. SERVER TECHNOLOGY & ENVIRONMENT
+--------------------------------------------------------------------------------
+* Backend Technology : Node.js (v18+) with Express.js framework
+* Server File Path    : /server/server.js
+* Server Port         : 3001 (Configurable via PORT environment variable)
+* Base API Endpoint   : http://localhost:3001/api
+* Health Check URL    : http://localhost:3001/health
+* Protocol / Format   : HTTP REST / JSON (application/json)
+* CORS Configuration  : Configured in server.js to allow frontend requests
+* Start Command       : npm run server  OR  node server/server.js
+
+Environment Variables:
+  - PORT             : Server port number (default: 3001)
+  - NODE_ENV         : "development" or "production"
+  - FRONTEND_ORIGIN  : URL of the frontend app (e.g., http://localhost:5173)
+
+
+2. STATIC VALUES (Fixed Game Parameters & Math Constants)
+--------------------------------------------------------------------------------
+These values are fixed in code (/server/config/gameConfig.js and symbols.js)
+and do not change per spin. The Admin Panel can read or display these:
+
+  - Grid Structure        : 3 Reels x 3 Rows (3x3 Grid)
+  - Number of Paylines    : 5 Fixed Paylines
+  - Mathematical RTP      : 96.07%
+  - Game Volatility       : High
+  - Buy Bonus Cost        : 80x current bet amount (cost = bet * 80)
+  - Minimum Bet           : 0.10
+  - Maximum Bet           : 300.00
+  - Default Starting Bet  : 0.10
+  - Default Balance       : 1000.00
+  - Currency Code         : "FUN" (or "USD" / "EUR" depending on integration)
+  - Available Bet Steps   : [
+      0.10, 0.20, 0.30, 0.50, 0.70, 1.00, 1.50, 2.00, 3.00, 4.00,
+      5.00, 7.00, 10.00, 15.00, 20.00, 30.00, 50.00, 70.00, 100.00,
+      150.00, 200.00, 300.00
+    ] (22 Bet Levels)
+
+Symbol Payout Table (3-of-a-kind multiplier on active payline):
+for 1.00 bet
+  ------------------------------------------------------------------
+  ID | Symbol Name  | Icon | Payout (x Bet) | Weight | Type
+  ------------------------------------------------------------------
+   0 | Seven        | 7    | 60.0x          | 2      | High Payout (Jackpot)
+   1 | Star         | ★    | 40.0x          | 4      | High Payout
+   2 | Bell         | 🔔   | 8.0x           | 6      | Medium Payout
+   3 | Mitten       | 🧤   | 1.0x           | 10     | Low Payout
+   4 | Ornament     | 🎄   | 4.0x           | 12     | Low Payout
+   5 | Gingerbread  | 🍪   | 4.0x           | 14     | Low Payout
+   6 | Candy Cane   | 🍬   | 4.0x           | 16     | Low Payout
+   7 | Santa's Hat  | 🎅   | 4.0x           | 18     | Low Payout
+   8 | Bonus Elf    | 🎁   | BONUS GAME     | 8      | Special Trigger Symbol
+  ------------------------------------------------------------------
+
+Payline Definitions (Reel x Row Coordinates):
+  - Payline 1 : Top Row Horizontal         -> [(0,0), (1,0), (2,0)]
+  - Payline 2 : Middle Row Horizontal      -> [(0,1), (1,1), (2,1)]
+  - Payline 3 : Bottom Row Horizontal      -> [(0,2), (1,2), (2,2)]
+  - Payline 4 : Diagonal ↘ (Top-Left to Bottom-Right)  -> [(0,0), (1,1), (2,2)]
+  - Payline 5 : Diagonal ↗ (Bottom-Left to Top-Right)  -> [(0,2), (1,1), (2,0)]
+
+
+3. DYNAMIC VALUES (Real-time Live Player & Session Data)
+--------------------------------------------------------------------------------
+These values change dynamically with every spin, bet, and pick action:
+
+  - sessionId          : Unique player session identifier (String)
+  - balance            : Current player balance (Float, updated on bet/win)
+  - nonce              : Incremental spin counter per session (Integer)
+  - bet                : Current bet amount for active spin (Float)
+  - serverSeed         : Secret seed generated on server (64-char hex string)
+  - serverSeedHash     : Public SHA-256 hash of serverSeed (for Provably Fair)
+  - clientSeed         : Custom client seed provided by player/frontend
+  - grid               : 3x3 array of symbol IDs resulting from spin [reel][row]
+  - wins               : Array of winning lines, matching symbols, and payouts
+  - totalWin           : Total amount won in current spin (Float)
+  - bonusTriggered     : Boolean (true if 3 BONUS symbols landed or Buy Bonus)
+  - _pendingBonus      : Object holding active bonus pick multipliers
+  - history            : Array of all past spin records for audit log
+
+
+4. API ENDPOINTS REFERENCE (For Admin Panel Developer)
+--------------------------------------------------------------------------------
+
+[1] POST /api/session/create
+    - Description : Start a new game session
+    - Request Body:
+      {
+        "startingBalance": 1000.00
+      }
+    - Response:
+      {
+        "success": true,
+        "data": {
+          "sessionId": "sess_1725255600000_abc123",
+          "balance": 1000.00,
+          "currency": "FUN",
+          "serverSeedHash": "e3b0c44298fc...",
+          "clientSeed": "default_client_seed",
+          "nonce": 0
+        }
+      }
+
+[2] GET /api/session/:id
+    - Description : Inspect player session state & balance
+    - Response:
+      {
+        "success": true,
+        "data": {
+          "sessionId": "sess_1725255600000_abc123",
+          "balance": 980.50,
+          "currency": "FUN",
+          "nonce": 12
+        }
+      }
+
+[3] POST /api/spin
+    - Description : Execute a regular spin
+    - Request Body:
+      {
+        "sessionId": "sess_1725255600000_abc123",
+        "bet": 1.00
+      }
+    - Response:
+      {
+        "success": true,
+        "data": {
+          "spinId": "sess_1725255600000_abc123_13",
+          "timestamp": "2026-09-02T05:47:00.000Z",
+          "bet": 1.00,
+          "grid": [[0, 1, 2], [3, 0, 1], [2, 0, 4]],
+          "wins": [
+            {
+              "paylineId": 1,
+              "symbolId": 0,
+              "winAmount": 60.00
+            }
+          ],
+          "bonusTriggered": false,
+          "totalWin": 60.00,
+          "balanceBefore": 980.50,
+          "balance": 1039.50,
+          "nonce": 13
+        }
+      }
+
+[4] POST /api/buybonus
+    - Description : Purchase direct entry into Bonus Feature (Cost: 80x Bet)
+    - Request Body:
+      {
+        "sessionId": "sess_1725255600000_abc123",
+        "bet": 1.00
+      }
+
+[5] POST /api/bonus/pick
+    - Description : Player selects a gift box during Bonus Round
+    - Request Body:
+      {
+        "sessionId": "sess_1725255600000_abc123",
+        "giftIndex": 2
+      }
+
+[6] GET /api/history/:sessionId?page=1&limit=20
+    - Description : Retrieve paginated audit log of player spins & balance changes
+    - Query Params: page (default 1), limit (default 20)
+
+[7] GET /api/paytable
+    - Description : Fetch all symbol payout details
+
+[8] GET /api/paylines
+    - Description : Fetch payline coordinate definitions
+
+[9] GET /api/config
+    - Description : Fetch global game settings (RTP, bet steps, etc.)
+
+[10] GET /health
+    - Description : Health check status endpoint

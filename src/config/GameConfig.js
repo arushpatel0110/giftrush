@@ -49,7 +49,7 @@ export const GameConfig = Object.freeze({
   TURBO_MULTIPLIER: 0.4,   // multiply durations when turbo on
 
   // ── Testing Toggles ──────────────────────────────────────
-  FORCE_TEST_BONUS: true, // Set to true to test 3-bonus trigger on EVERY spin; set false for normal play
+  FORCE_TEST_BONUS: false, // Set to true to test 3-bonus trigger on EVERY spin; set false for normal play
 
   // ── Betting ─────────────────────────────────────────────
   BET_STEPS: [0.10, 0.20, 0.30, 0.50, 0.70, 1.00, 1.50, 2.00, 3.00, 4.00, 5.00, 7.00, 10.00, 15.00, 20.00, 30.00, 50.00, 70.00, 100.00, 150.00, 200.00, 300.00],

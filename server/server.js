@@ -35,6 +35,10 @@ const { purgeExpired } = require('./engine/sessionManager');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust the first proxy hop (required on Render / Heroku / Railway etc.)
+// so express-rate-limit can read X-Forwarded-For correctly.
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet({
   crossOriginEmbedderPolicy: false,  // Required for game assets

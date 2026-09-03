@@ -67,10 +67,10 @@ export class BetPanel extends PIXI.Container {
 
     // ── Label: "Total bet" ──────────────────────────────────────
     this._lbl = new PIXI.Text('Total bet', {
-      fontFamily: '"Roboto Condensed", sans-serif',
+      fontFamily: 'sans-serif',
       fontSize: 18,
       fill: 0xCCCCCC,
-      fontWeight: '280',
+      fontWeight: '200',
     });
     this._lbl.anchor.set(0.5, 0);
     this._lbl.x = 60;
@@ -79,10 +79,10 @@ export class BetPanel extends PIXI.Container {
 
     // ── Display value: "0.20 FUN" ──────────────────────────────
     this._betText = new PIXI.Text('', {
-      fontFamily: '"Roboto Condensed", sans-serif',
+      fontFamily: 'sans-serif',
       fontSize: 18,
       fill: 0xFFFFFF,
-      fontWeight: '280',
+      fontWeight: '200',
     });
     this._betText.anchor.set(0.5, 0);
     this._betText.x = 60;
@@ -109,6 +109,25 @@ export class BetPanel extends PIXI.Container {
     this._buildPopupMenu();
 
     this._updateDisplay();
+
+    // ── Font-load guard ─────────────────────────────────────────
+    // When the game opens directly in landscape, "Roboto Condensed" may not
+    // be loaded yet at construction time. PIXI bakes glyphs at first render,
+    // so if the font isn't ready it falls back to the system sans-serif and
+    // uses wrong metrics. Once fonts are ready we force a style flush so PIXI
+    // re-bakes the text with the correct typeface.
+    document.fonts.ready.then(() => {
+      if (this._isPortrait) {
+        if (this._betText && !this._betText.destroyed) {
+          this._betText.style.fontFamily = 'sans-serif';
+          this._betText.style.fontFamily = '"Roboto Condensed", sans-serif';
+        }
+        if (this._lbl && !this._lbl.destroyed) {
+          this._lbl.style.fontFamily = 'sans-serif';
+          this._lbl.style.fontFamily = '"Roboto Condensed", sans-serif';
+        }
+      }
+    });
   }
 
   _buildPopupMenu() {
@@ -368,15 +387,15 @@ export class BetPanel extends PIXI.Container {
     const isPortrait = !!this._isPortrait;
 
     if (this._lbl) {
-      this._lbl.style.fontFamily = '"Roboto Condensed", sans-serif';
+      this._lbl.style.fontFamily = isPortrait ? '"Roboto Condensed", sans-serif' : 'sans-serif';
       this._lbl.style.fontSize = isPortrait ? 24 : 18;
-      this._lbl.style.fontWeight = isPortrait ? '500' : '280';
+      this._lbl.style.fontWeight = isPortrait ? '500' : '200';
     }
 
     if (this._betText) {
-      this._betText.style.fontFamily = '"Roboto Condensed", sans-serif';
+      this._betText.style.fontFamily = isPortrait ? '"Roboto Condensed", sans-serif' : 'sans-serif';
       this._betText.style.fontSize = isPortrait ? 28 : 18;
-      this._betText.style.fontWeight = '280';
+      this._betText.style.fontWeight = isPortrait ? '280' : '200';
       this._betText.text = `${b.toFixed(2)} FUN`;
     }
 
@@ -423,6 +442,7 @@ export class BetPanel extends PIXI.Container {
       if (this._btnUp) this._btnUp.visible = false;
       if (this._btnDown) this._btnDown.visible = false;
       if (this._lbl) {
+        this._lbl.style.fontFamily = '"Roboto Condensed", sans-serif';
         this._lbl.style.fontSize = 24;
         this._lbl.style.fontWeight = '500';
         this._lbl.anchor.set(0, 0);
@@ -430,7 +450,9 @@ export class BetPanel extends PIXI.Container {
         this._lbl.y = -132;
       }
       if (this._betText) {
+        this._betText.style.fontFamily = '"Roboto Condensed", sans-serif';
         this._betText.style.fontSize = 28;
+        this._betText.style.fontWeight = '280';
         this._betText.anchor.set(0, 0);
         this._betText.x = 60;
         this._betText.y = -105;
@@ -447,15 +469,17 @@ export class BetPanel extends PIXI.Container {
       if (this._btnUp) this._btnUp.visible = true;
       if (this._btnDown) this._btnDown.visible = true;
       if (this._lbl) {
+        this._lbl.style.fontFamily = 'sans-serif';
         this._lbl.style.fontSize = 18;
-        this._lbl.style.fontWeight = '280';
+        this._lbl.style.fontWeight = '200';
         this._lbl.anchor.set(0.5, 0);
         this._lbl.x = 60;
         this._lbl.y = 2;
       }
       if (this._betText) {
+        this._betText.style.fontFamily = 'sans-serif';
         this._betText.style.fontSize = 18;
-        this._betText.style.fontWeight = '280';
+        this._betText.style.fontWeight = '200';
         this._betText.anchor.set(0.5, 0);
         this._betText.x = 60;
         this._betText.y = 24;

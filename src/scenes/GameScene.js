@@ -216,14 +216,33 @@ export class GameScene extends EventEmitter {
     });
 
     this._slotMachine.on('bonusTriggered', async (result) => {
-      await AnimationUtils.wait(200);
-      this._audio?.playWaitingBg();
-      await this._ui.showBonusIntro();
-      this._audio?.stopWaitingBg();
-      this._audio?.playBoxPopClick();
-      await this._runBonusGame();
-      this._slotMachine?.clearWinOverlays?.();
-      this._finishSpin();
+      try {
+        // Stop autospin first (sets _autoplay = false, resets counter)
+        if (this._autoplay) {
+          this._stopAutoplay();
+        }
+
+        // ── CRITICAL: unlock the UI so the BonusIntroModal is fully interactive ──
+        // setSpinning(false) releases the spin-button lock and re-enables PIXI
+        // hit-testing on all interactive containers before the modal shows.
+        this._ui?.setSpinning(false);
+
+        await AnimationUtils.wait(200);
+        this._audio?.playWaitingBg();
+        await this._ui.showBonusIntro();
+        this._audio?.stopWaitingBg();
+        this._audio?.playBoxPopClick();
+        await this._runBonusGame();
+        this._slotMachine?.clearWinOverlays?.();
+        this._finishSpin();
+      } catch (err) {
+        // Safety net: if anything throws, reset state so the game is never stuck
+        console.error('[GameScene] bonusTriggered handler error:', err);
+        this._spinning = false;
+        this._ui?.setSpinning(false);
+        this._ui?.setBonusActive(false);
+        if (this._autoplay) this._stopAutoplay();
+      }
     });
 
     this._slotMachine.on('symbolClick', (symbolId, reelIndex, rowIndex, targetPos) => {
@@ -385,8 +404,8 @@ export class GameScene extends EventEmitter {
       return;
     }
     this._audio.playSpin();
-    // In server mode the server deducts the bet — skip local deduction
-    if (!this._serverReady) this._deductBet();
+    // Always deduct bet locally when spin starts so balance drops immediately
+    this._deductBet();
     this._spin();
   }
 
@@ -406,20 +425,19 @@ export class GameScene extends EventEmitter {
           serverResult = await this._api.spin(this._sessionId, this._bet);
         }
 
-        // Sync balance from server (authoritative)
-        this._balance = serverResult.balance;
-        this._ui?.setBalance(this._balance);
+        // Store authoritative balance to sync AFTER the spin completes, avoiding early spoilers
+        this._pendingServerBalance = serverResult.balance;
 
         // Drive the reel animation with server-determined grid
         await this._slotMachine.spinWithResult(serverResult.grid, this._bet);
 
         // Server already evaluated wins — pass them straight to presentation
         const winData = {
-          wins:           serverResult.wins,
-          totalWin:       serverResult.totalWin,
+          wins: serverResult.wins,
+          totalWin: serverResult.totalWin,
           bonusTriggered: serverResult.bonusTriggered,
           bonusPositions: serverResult.bonusPositions,
-          _serverResult:  serverResult,
+          _serverResult: serverResult,
         };
         this._lastServerWinData = winData;
         return;
@@ -440,9 +458,7 @@ export class GameScene extends EventEmitter {
     if (winData.totalWin > 0) {
       this._audio.playWin(winData.totalWin);
       await this._ui.showWin(winData.totalWin);
-      if (!this._serverReady) {
-        this._applyWin(winData.totalWin);
-      }
+      this._applyWin(winData.totalWin);
 
       if (this._autoplay && this._autoSettings) {
         if (this._autoSettings.stopOnAnyWin) {
@@ -473,6 +489,12 @@ export class GameScene extends EventEmitter {
     this._spinning = false;
     this._ui.setSpinning(false);
     this._ui.setBonusActive(false);
+
+    if (this._pendingServerBalance !== undefined) {
+      this._balance = this._pendingServerBalance;
+      this._ui?.setBalance(this._balance);
+      this._pendingServerBalance = undefined;
+    }
 
     if (this._pendingHistoryRecord) {
       this._pendingHistoryRecord.balanceAfter = this._balance;

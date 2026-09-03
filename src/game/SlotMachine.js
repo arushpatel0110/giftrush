@@ -945,7 +945,7 @@ export class SlotMachine extends EventEmitter {
 
       try {
         bug.blendMode = PIXI.BLEND_MODES.ADD;
-      } catch (e) {}
+      } catch (e) { }
 
       const startX = (gridW / 2) + (Math.random() - 0.5) * frameWidth;
       const startY = -35 + (Math.random() - 0.5) * 35;

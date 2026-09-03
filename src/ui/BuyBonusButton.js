@@ -517,7 +517,7 @@ export class BuyBonusButton extends PIXI.Container {
 
       try {
         bug.blendMode = PIXI.BLEND_MODES.ADD;
-      } catch (e) {}
+      } catch (e) { }
 
       const initialX = (Math.random() - 0.5) * 120;
       const initialY = -30 + (Math.random() - 0.5) * 35;

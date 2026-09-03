@@ -514,6 +514,7 @@ async function getConfig(req, res) {
       buyBonusCostX:  GameConfig.BUY_BONUS_COST_X,
       autoplayOptions:GameConfig.AUTOPLAY_OPTIONS,
       rtp:            GameConfig.RTP,
+      bonusRtp:       GameConfig.BONUS_RTP,
       volatility:     GameConfig.VOLATILITY,
       bonusGiftCount: GameConfig.BONUS_GIFT_COUNT,
     },

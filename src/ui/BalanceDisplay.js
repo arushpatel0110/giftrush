@@ -22,10 +22,10 @@ export class BalanceDisplay extends PIXI.Container {
   _buildUI() {
     // 1. Single-line text for Landscape mode (EXACT original landscape text)
     this._valueText = new PIXI.Text('Balance 0.00 FUN', {
-      fontFamily: 'Outfit, sans-serif',
-      fontSize: 14,
+      fontFamily: '"Roboto Condensed", sans-serif',
+      fontSize: 16,
       fill: 0xFFFFFF,
-      fontWeight: '500',
+      fontWeight: '280',
     });
     this._valueText.anchor.set(0, 0.5);
     this._valueText.x = 0;
@@ -34,8 +34,8 @@ export class BalanceDisplay extends PIXI.Container {
 
     // 2. Separate label for Portrait mode
     this._lbl = new PIXI.Text('Balance', {
-      fontFamily: 'Outfit, sans-serif',
-      fontSize: 13,
+      fontFamily: '"Roboto Condensed", sans-serif',
+      fontSize: 15,
       fill: 0xCCCCCC,
       fontWeight: '500',
     });
@@ -46,10 +46,10 @@ export class BalanceDisplay extends PIXI.Container {
 
     // 3. Separate amount text for Portrait mode
     this._portraitAmtText = new PIXI.Text('0.00 FUN', {
-      fontFamily: 'Outfit, sans-serif',
+      fontFamily: '"Roboto Condensed", sans-serif',
       fontSize: 16,
       fill: 0xFFFFFF,
-      fontWeight: 'bold',
+      fontWeight: '280',
     });
     this._portraitAmtText.x = 0;
     this._portraitAmtText.y = -100;
@@ -72,7 +72,7 @@ export class BalanceDisplay extends PIXI.Container {
     if (isPortrait) {
       // Portrait mode: show split label & amount at y = -105 and y = -78 with larger fonts
       if (this._lbl) {
-        this._lbl.style.fontSize = 22;
+        this._lbl.style.fontSize = 24;
         this._lbl.y = -132;
         this._lbl.visible = true;
       }

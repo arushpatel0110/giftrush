@@ -308,7 +308,7 @@ export class RulesModal extends PIXI.Container {
     addParagraph(
       'Gift Rush is a traditional 3x3 slot not overwhelmed with anything complicated – just what is needed to take a break from the pile of things to do at the end of the year and relax in expectation of the holiday. ' +
       'Your eyes will be pleased with snowflakes, bells, Christmas tree balls, gingerbreads and other symbols, without which one can hardly imagine the most enchanting holiday of the year. ' +
-      'The game has a very rewarding and intriguing Bonus round, where you can win up to x499 of the bet. And it\'s up to you to decide, what gift you will get – you will choose it yourself out of 5 gifts appeared on the screen.'
+      'The game has a very rewarding and intriguing Bonus round, where you can win up to x599 of the bet. And it\'s up to you to decide, what gift you will get – you will choose it yourself out of 5 gifts appeared on the screen.'
     );
 
     // ── 2. How to play ──
@@ -338,7 +338,7 @@ export class RulesModal extends PIXI.Container {
     addTitle('Features');
     addParagraph(
       'Bonus symbol: 3 Bonus symbols on reels 1-2-3 trigger the Bonus game.\n\n' +
-      'Bonus game: In the Bonus game a player should choose one of 5 gifts appeared on the screen. A player clicks on any of the gifts and learns the amount of his/her win. The maximum winning amount in the Bonus round is x499 of the bet.\n\n' +
+      'Bonus game: In the Bonus game a player should choose one of 5 gifts appeared on the screen. A player clicks on any of the gifts and learns the amount of his/her win. The maximum winning amount in the Bonus round is x599 of the bet.\n\n' +
       'Buy Bonus: A player can buy the Bonus game at the price pictured on the button. The next spin after the purchase triggers the Bonus game.'
     );
 

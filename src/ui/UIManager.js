@@ -289,7 +289,19 @@ export class UIManager {
   }
   async showBonusIntro() {
     if (this._bonusIntroModal) {
+      // In landscape, bottomBarContainer has zIndex 10005 which sits above the modal's
+      // default 9995. Temporarily raise the modal above it so its black backdrop
+      // visually covers the bottom strip — without hiding any elements.
+      if (!this._isPortrait) {
+        this._bonusIntroModal.zIndex = 10010;
+      } else {
+        this._bonusIntroModal.zIndex = 9995;
+      }
+
       await this._bonusIntroModal.show();
+
+      // Restore original zIndex after popup is dismissed
+      this._bonusIntroModal.zIndex = 9995;
     }
   }
   setBonusActive(active) {
@@ -677,7 +689,7 @@ export class UIManager {
         if (this._linePaysText) {
           this._linePaysText.text = `Line ${paylineId} pays`;
           this._linePaysText.anchor.set(0.5, 0.5);
-          this._linePaysText.style.fontSize = 20;
+          this._linePaysText.style.fontSize = 26;
           this._linePaysText.x = 230;
           this._linePaysText.y = BY - 65;
           this._linePaysText.visible = true;
@@ -858,9 +870,10 @@ export class UIManager {
       this._upperPortraitStrip.drawRect(-1500, BY - 145, 4000, 145);
       this._upperPortraitStrip.endFill();
       this._upperPortraitStrip.visible = !this._isModalOpen;
+      if (this.bottomBarContainer) this.bottomBarContainer.zIndex = 0;
 
       if (this._linePaysText) {
-        this._linePaysText.style.fontSize = 20;
+        this._linePaysText.style.fontSize = 26;
         this._linePaysText.anchor.set(0.5, 0.5);
         this._linePaysText.x = 230; this._linePaysText.y = BY - 65;
         this._linePaysText.visible = !this._isModalOpen && !!this._isWinActive && !!(this._linePaysText.text && this._linePaysText.text.length > 0);
@@ -869,8 +882,8 @@ export class UIManager {
         const hasLinePays = !!(this._linePaysText && this._linePaysText.visible);
         this._totalWinContainer.x = hasLinePays ? 490 : 360;
         this._totalWinContainer.y = BY - 88;
-        if (this._totalWinLabelText) this._totalWinLabelText.style.fontSize = 18;
-        if (this._totalWinAmountText) this._totalWinAmountText.style.fontSize = 28;
+        if (this._totalWinLabelText) this._totalWinLabelText.style.fontSize = 22;
+        if (this._totalWinAmountText) this._totalWinAmountText.style.fontSize = 36;
         this._totalWinContainer.visible = !this._isModalOpen && !!this._isWinActive;
       }
       if (this._balanceDisplay) {
@@ -879,7 +892,7 @@ export class UIManager {
         this._balanceDisplay.visible = !this._isModalOpen;
       }
       if (this._quickSpinPromptText) {
-        this._quickSpinPromptText.style.fontSize = 22;
+        this._quickSpinPromptText.style.fontSize = 26;
         this._quickSpinPromptText.x = 360; this._quickSpinPromptText.y = BY - 65;
         if (this._isModalOpen || this._isWinActive) {
           this._quickSpinPromptText.visible = false;
@@ -909,6 +922,7 @@ export class UIManager {
       if (this._fiveLinesRibbon) { this._fiveLinesRibbon.x = 1020; this._fiveLinesRibbon.y = 344; }
 
       const showGreyStrip = this.isFullModalOpen();
+      if (this.bottomBarContainer) this.bottomBarContainer.zIndex = 10005;
 
       if (this._bottomStripGraphics) {
         this._bottomStripGraphics.clear();
@@ -940,7 +954,7 @@ export class UIManager {
       if (this._linePaysText) { this._linePaysText.style.fontSize = 20; this._linePaysText.x = 510; this._linePaysText.y = BY + 32; }
       if (this._totalWinContainer) { this._totalWinContainer.x = (this._linePaysText?.visible ? 730 : 650); this._totalWinContainer.y = BY + 12; }
       if (this._autoPanel) { this._autoPanel.x = 1010; this._autoPanel.y = BY + 32; this._autoPanel.updateLayout?.(false); }
-      if (this._quickSpinPromptText) { this._quickSpinPromptText.style.fontSize = 18; this._quickSpinPromptText.x = 650; this._quickSpinPromptText.y = BY + 32; }
+      if (this._quickSpinPromptText) { this._quickSpinPromptText.style.fontSize = 20; this._quickSpinPromptText.x = 650; this._quickSpinPromptText.y = BY + 32; }
       if (this._spinBtn) { this._spinBtn.x = 1075; this._spinBtn.y = BY + 32; this._spinBtn.updateLayout?.(false, this._isModalOpen); }
     }
 
@@ -1194,6 +1208,9 @@ export class UIManager {
         this.closeAllModals();
         this._currentBuyBonusCost = cost;
         if (this._buyBonusConfirmModal) {
+          // In landscape, bottomBarContainer has zIndex 10005 which sits above the
+          // modal's default 9990. Raise it so the black backdrop covers the strip.
+          this._buyBonusConfirmModal.zIndex = this._isPortrait ? 9990 : 10010;
           this._buyBonusConfirmModal.show(cost);
         }
       },
@@ -1313,13 +1330,15 @@ export class UIManager {
       this._buyBonusBtn.updateBet(bet);
     }, this._callbacks.getUITexture, () => {
       this.showBetSelection();
+    }, () => {
+      this.closeAllModals();
     });
     this._betPanel.x = 250; this._betPanel.y = BY + 10;
     this.bottomBarContainer.addChild(this._betPanel);
 
     // ── Bottom Bar Win Presentation Area (Matching Reference Image) ──
     this._linePaysText = new PIXI.Text('', {
-      fontFamily: 'Outfit, Arial, sans-serif',
+      fontFamily: '"Roboto Condensed", Arial, sans-serif',
       fontSize: 20,
       fill: '#FFFFFF',
       fontWeight: '200',
@@ -1336,7 +1355,7 @@ export class UIManager {
     this._totalWinContainer.visible = false;
 
     this._totalWinLabelText = new PIXI.Text('Total win:', {
-      fontFamily: 'Outfit, Arial, sans-serif',
+      fontFamily: '"Roboto Condensed", Arial, sans-serif',
       fontSize: 17,
       fill: '#FFFFFF',
       fontWeight: '200',
@@ -1347,7 +1366,7 @@ export class UIManager {
     this._totalWinContainer.addChild(this._totalWinLabelText);
 
     this._totalWinAmountText = new PIXI.Text('0.00 FUN', {
-      fontFamily: 'Outfit, Arial, sans-serif',
+      fontFamily: '"Roboto Condensed", Arial, sans-serif',
       fontSize: 28,
       fill: '#FFFFFF',
       fontWeight: '300',
@@ -1375,10 +1394,10 @@ export class UIManager {
 
     // Simple white prompt text centered on bottom strip ("Hold spin for quick spins")
     this._quickSpinPromptText = new PIXI.Text('Hold spin for quick spins', {
-      fontFamily: 'Outfit, Arial, sans-serif',
-      fontSize: 18,
+      fontFamily: '"Roboto Condensed", Arial, sans-serif',
+      fontSize: 20,
       fill: '#FFFFFF',
-      fontWeight: '400',
+      fontWeight: '280',
       dropShadow: true,
       dropShadowColor: '#000000',
       dropShadowBlur: 3,
@@ -1414,10 +1433,16 @@ export class UIManager {
     setInterval(triggerPrompt, 8000);
 
     this._spinBtn = new SpinButton(
-      () => this._callbacks.onSpin?.(),
+      () => {
+        this.closeAllModals();
+        this._callbacks.onSpin?.();
+      },
       () => this._callbacks.onStop?.(),
       this._callbacks.getUITexture,
-      () => this._callbacks.onHoldStart?.(),
+      () => {
+        this.closeAllModals();
+        this._callbacks.onHoldStart?.();
+      },
       () => this._callbacks.onHoldEnd?.()
     );
     this._spinBtn.x = 1075; this._spinBtn.y = BY + 32;

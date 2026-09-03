@@ -80,7 +80,7 @@ export class RNGEngine {
 
   /**
    * Generate an array of 5 random gift multipliers for the bonus game.
-   * Multipliers range dynamically between 2x and 499x.
+   * Multipliers range dynamically between 2x and 599x.
    * @returns {number[]}
    */
   generateGiftMultipliers() {
@@ -96,7 +96,7 @@ export class RNGEngine {
     } else if (r < 0.96) {
       return Math.floor(101 + Math.random() * 150); // 101..250
     } else {
-      return Math.floor(251 + Math.random() * 249); // 251..499
+      return Math.floor(251 + Math.random() * 349); // 251..599
     }
   }
 

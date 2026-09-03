@@ -27,10 +27,11 @@ const GameConfig = Object.freeze({
 
   // ── RTP & Volatility ────────────────────────────────────
   RTP:        96.07,
+  BONUS_RTP:  95.098,
   VOLATILITY: 'HIGH',
 
   // ── Bonus Gift multiplier pool ───────────────────────────
-  BONUS_GIFT_POOL:    [2, 3, 5, 8, 10, 15, 20, 30, 50, 100, 200, 499],
+  BONUS_GIFT_POOL:    [2, 3, 5, 8, 10, 15, 20, 30, 50, 100, 200, 599],
   BONUS_GIFT_WEIGHTS: [40, 30, 20, 18, 14, 10, 8, 6, 4, 2, 1, 0.5],
   BONUS_GIFT_COUNT:   5,  // how many gift boxes appear
 

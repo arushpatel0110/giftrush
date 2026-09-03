@@ -470,7 +470,7 @@ export class PaytableModal extends PIXI.Container {
     const txt2 = createText(
       'In the Bonus game a player should choose one of 5 gifts appeared on the screen. ' +
       'A player clicks on any of the gifts and learns the amount of his/her win. ' +
-      'The maximum winning amount in the Bonus round is x499 of the bet.',
+      'The maximum winning amount in the Bonus round is x599 of the bet.',
       {
         fontFamily: 'Outfit, sans-serif',
         fontSize: isPortrait ? 22 : 17,

@@ -7,13 +7,14 @@ import { AnimationUtils } from '../utils/AnimationUtils.js';
  * BetPanel – Official Gift Rush bet control panel with vertical scrollable bet selection popup menu.
  */
 export class BetPanel extends PIXI.Container {
-  constructor(onBetChange, getUITexture, onOpenPortraitBetModal) {
+  constructor(onBetChange, getUITexture, onOpenPortraitBetModal, onLandscapeInteract) {
     super();
     this._steps = GameConfig.BET_STEPS;
     this._stepIdx = GameConfig.DEFAULT_BET_INDEX;
     this._onChange = onBetChange;
     this._getUITexture = getUITexture;
     this._onOpenPortraitBetModal = onOpenPortraitBetModal;
+    this._onLandscapeInteract = onLandscapeInteract;
     this._isMenuOpen = false;
     this._scrollY = 0;
     this._isDragging = false;
@@ -66,8 +67,8 @@ export class BetPanel extends PIXI.Container {
 
     // ── Label: "Total bet" ──────────────────────────────────────
     this._lbl = new PIXI.Text('Total bet', {
-      fontFamily: 'Outfit, sans-serif',
-      fontSize: 13,
+      fontFamily: '"Roboto Condensed", sans-serif',
+      fontSize: 15,
       fill: 0xCCCCCC,
       fontWeight: '500',
     });
@@ -77,18 +78,18 @@ export class BetPanel extends PIXI.Container {
 
     // ── Display value: "0.20 FUN" ──────────────────────────────
     this._betText = new PIXI.Text('', {
-      fontFamily: 'Outfit, sans-serif',
+      fontFamily: '"Roboto Condensed", sans-serif',
       fontSize: 16,
       fill: 0xFFFFFF,
-      fontWeight: 'bold',
+      fontWeight: '280',
     });
     this._betText.x = 10;
     this._betText.y = 24;
     this.addChild(this._betText);
 
     // ── Stacked Arrow Buttons (▲ / ▼) on right ─────────────────
-    this._btnUp = this._makeArrowBtn('▲', 130, -6, () => this._step(1));
-    this._btnDown = this._makeArrowBtn('▼', 130, 24, () => this._step(-1));
+    this._btnUp = this._makeArrowBtn('▲', 130, -6, () => { this._onLandscapeInteract?.(); this._step(1); });
+    this._btnDown = this._makeArrowBtn('▼', 130, 24, () => { this._onLandscapeInteract?.(); this._step(-1); });
     this.addChild(this._btnUp, this._btnDown);
 
     // Toggle menu when clicking on bet label / amount / background
@@ -97,6 +98,7 @@ export class BetPanel extends PIXI.Container {
       if (this._isPortrait) {
         this._onOpenPortraitBetModal?.();
       } else {
+        this._onLandscapeInteract?.();
         this._toggleMenu();
       }
     });
@@ -329,7 +331,8 @@ export class BetPanel extends PIXI.Container {
     btn.x = x; btn.y = y;
 
     const bg = new PIXI.Graphics();
-    bg.beginFill(0x4A0008, 0.6).drawRect(0, 0, 28, 28).endFill();
+    bg.beginFill(0xFFFFFF, 0.3).drawRect(0, 0, 28, 28).endFill();
+    bg.tint = 0x000000;
 
     const txt = new PIXI.Text(symbol, {
       fontFamily: 'Outfit, sans-serif',
@@ -346,8 +349,8 @@ export class BetPanel extends PIXI.Container {
       AnimationUtils.bounce(btn, 0.08, 150);
       cb();
     });
-    btn.on('pointerover', () => { bg.tint = 0xFF8888; });
-    btn.on('pointerout', () => { bg.tint = 0xFFFFFF; });
+    btn.on('pointerover', () => { bg.tint = 0x555555; });
+    btn.on('pointerout', () => { bg.tint = 0x000000; });
 
     return btn;
   }
@@ -404,12 +407,15 @@ export class BetPanel extends PIXI.Container {
       if (this._btnUp) this._btnUp.visible = false;
       if (this._btnDown) this._btnDown.visible = false;
       if (this._lbl) {
-        this._lbl.style.fontSize = 22;
+        this._lbl.style.fontSize = 24;
+        this._lbl.style.fontWeight = '500';
+        this._lbl.anchor.set(0, 0);
         this._lbl.x = 60;
         this._lbl.y = -132;
       }
       if (this._betText) {
         this._betText.style.fontSize = 28;
+        this._betText.anchor.set(0, 0);
         this._betText.x = 60;
         this._betText.y = -105;
       }
@@ -425,13 +431,16 @@ export class BetPanel extends PIXI.Container {
       if (this._btnUp) this._btnUp.visible = true;
       if (this._btnDown) this._btnDown.visible = true;
       if (this._lbl) {
-        this._lbl.style.fontSize = 13;
-        this._lbl.x = 10;
+        this._lbl.style.fontSize = 18;
+        this._lbl.style.fontWeight = '280';
+        this._lbl.anchor.set(0.5, 0);
+        this._lbl.x = 60;
         this._lbl.y = 2;
       }
       if (this._betText) {
         this._betText.style.fontSize = 16;
-        this._betText.x = 10;
+        this._betText.anchor.set(0.5, 0);
+        this._betText.x = 60;
         this._betText.y = 24;
       }
       if (this._clickableArea) {

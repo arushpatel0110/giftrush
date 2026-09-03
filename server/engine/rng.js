@@ -71,7 +71,7 @@ class RNGEngine {
 
   /**
    * Generate an array of bonus gift multipliers.
-   * Multipliers range dynamically between 2x and 499x.
+   * Multipliers range dynamically between 2x and 599x.
    * @returns {{ multipliers: number[], winIndex: number }}
    */
   generateGiftMultipliers(serverSeed, clientSeed, nonce) {
@@ -100,7 +100,7 @@ class RNGEngine {
     } else if (r < 0.96) {
       return Math.floor(101 + ((r - 0.85) / 0.11) * 150); // 101..250
     } else {
-      return Math.floor(251 + ((r - 0.96) / 0.04) * 249); // 251..499
+      return Math.floor(251 + ((r - 0.96) / 0.04) * 349); // 251..599
     }
   }
 

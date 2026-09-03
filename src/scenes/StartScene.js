@@ -296,8 +296,8 @@ export class StartScene extends EventEmitter {
     this._choosePrizeText.y = 435;
     this._contentContainer.addChild(this._choosePrizeText);
 
-    // 8. Big Golden Multiplier Banner ("Max Bonus Win 499×")
-    this._maxWinText = new PIXI.Text('Max Bonus Win 499×', {
+    // 8. Big Golden Multiplier Banner ("Max Bonus Win 599×")
+    this._maxWinText = new PIXI.Text('Max Bonus Win 599×', {
       fontFamily: font,
       fontStyle: 'italic',
       fontWeight: '900',

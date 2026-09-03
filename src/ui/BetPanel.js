@@ -68,22 +68,24 @@ export class BetPanel extends PIXI.Container {
     // ── Label: "Total bet" ──────────────────────────────────────
     this._lbl = new PIXI.Text('Total bet', {
       fontFamily: '"Roboto Condensed", sans-serif',
-      fontSize: 15,
+      fontSize: 18,
       fill: 0xCCCCCC,
-      fontWeight: '500',
+      fontWeight: '280',
     });
-    this._lbl.x = 10;
+    this._lbl.anchor.set(0.5, 0);
+    this._lbl.x = 60;
     this._lbl.y = 2;
     this.addChild(this._lbl);
 
     // ── Display value: "0.20 FUN" ──────────────────────────────
     this._betText = new PIXI.Text('', {
       fontFamily: '"Roboto Condensed", sans-serif',
-      fontSize: 16,
+      fontSize: 18,
       fill: 0xFFFFFF,
       fontWeight: '280',
     });
-    this._betText.x = 10;
+    this._betText.anchor.set(0.5, 0);
+    this._betText.x = 60;
     this._betText.y = 24;
     this.addChild(this._betText);
 
@@ -363,9 +365,23 @@ export class BetPanel extends PIXI.Container {
 
   _updateDisplay() {
     const b = this.currentBet;
-    this._betText.text = `${b.toFixed(2)} FUN`;
-    this._btnDown.alpha = this._stepIdx === 0 ? 0.3 : 1;
-    this._btnUp.alpha = this._stepIdx === this._steps.length - 1 ? 0.3 : 1;
+    const isPortrait = !!this._isPortrait;
+
+    if (this._lbl) {
+      this._lbl.style.fontFamily = '"Roboto Condensed", sans-serif';
+      this._lbl.style.fontSize = isPortrait ? 24 : 18;
+      this._lbl.style.fontWeight = isPortrait ? '500' : '280';
+    }
+
+    if (this._betText) {
+      this._betText.style.fontFamily = '"Roboto Condensed", sans-serif';
+      this._betText.style.fontSize = isPortrait ? 28 : 18;
+      this._betText.style.fontWeight = '280';
+      this._betText.text = `${b.toFixed(2)} FUN`;
+    }
+
+    if (this._btnDown) this._btnDown.alpha = this._stepIdx === 0 ? 0.3 : 1;
+    if (this._btnUp) this._btnUp.alpha = this._stepIdx === this._steps.length - 1 ? 0.3 : 1;
     this._updateMenuRows();
   }
 
@@ -438,7 +454,8 @@ export class BetPanel extends PIXI.Container {
         this._lbl.y = 2;
       }
       if (this._betText) {
-        this._betText.style.fontSize = 16;
+        this._betText.style.fontSize = 18;
+        this._betText.style.fontWeight = '280';
         this._betText.anchor.set(0.5, 0);
         this._betText.x = 60;
         this._betText.y = 24;
@@ -452,5 +469,6 @@ export class BetPanel extends PIXI.Container {
         this._clickableArea.cursor = this._enabled ? 'pointer' : 'default';
       }
     }
+    this._updateDisplay();
   }
 }

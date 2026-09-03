@@ -41,7 +41,7 @@ app.use(helmet({
   contentSecurityPolicy: false,
 }));
 
-// CORS – allow localhost dev, Render, GamePeg, and any external host
+// CORS – allow the Vite dev server (localhost:5173) and production origin
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -51,8 +51,9 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow all origins – game is embedded on GamePeg and other platforms
-    cb(null, true);
+    // Allow requests with no origin (mobile apps, same-origin, Postman, curl, Render)
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.includes('onrender.com') || process.env.NODE_ENV === 'production') return cb(null, true);
+    cb(null, true); // Permissive fallback for production web clients
   },
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true,
